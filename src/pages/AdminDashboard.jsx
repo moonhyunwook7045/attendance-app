@@ -301,7 +301,7 @@ export default function AdminDashboard({ profile }) {
 
         {/* 사업장 위치 설정 */}
         <div className={`${CARD} p-5`}>
-          <h2 className="font-semibold text-white mb-3">⚙️ 사업장 위치 설정</h2>
+          <h2 className="font-semibold text-white mb-3">사업장 위치 설정</h2>
           <input
             value={office.name}
             onChange={(e) => setOffice((o) => ({ ...o, name: e.target.value }))}
@@ -629,7 +629,7 @@ function EmployeeCalendar({ records, profiles }) {
 
   return (
     <div className={`${CARD} p-5`}>
-      <h2 className="font-semibold text-white mb-3">📅 직원별 근무 캘린더</h2>
+      <h2 className="font-semibold text-white mb-3">직원별 근무 캘린더</h2>
 
       {employees.length === 0 ? (
         <p className="text-sm text-slate-400">직원이 없습니다.</p>

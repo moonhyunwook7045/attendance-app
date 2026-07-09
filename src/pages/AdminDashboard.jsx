@@ -306,7 +306,7 @@ export default function AdminDashboard({ profile }) {
                           : 'text-gray-400'
                     }`}
                   >
-                    {{ before: '출근 전', working: '근무 중', done: '종료' }[s.todayStatus]}
+                    {{ before: '출근 전', working: '근무 중', done: '퇴근' }[s.todayStatus]}
                   </span>
                   <span className="text-right text-gray-600 tabular-nums">
                     {fmtHours(s.todayMs)}

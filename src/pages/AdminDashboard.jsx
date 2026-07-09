@@ -412,9 +412,12 @@ export default function AdminDashboard({ profile }) {
             <div>
               <button
                 onClick={() => setOpenUserId(null)}
-                className="mb-3 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200"
+                className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3.5 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/15 hover:text-white"
               >
-                ‹ 직원 목록
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+                직원 목록으로 돌아가기
               </button>
               <p className="font-semibold text-white mb-3">
                 {names[openUserId] || '알 수 없음'}

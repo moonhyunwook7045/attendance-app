@@ -301,7 +301,7 @@ export default function AdminDashboard({ profile }) {
 
         {/* 사업장 위치 설정 */}
         <div className={`${CARD} p-5`}>
-          <h2 className="font-semibold text-white mb-3">사업장 위치 설정</h2>
+          <h2 className="font-semibold text-white mb-3">근무지 위치설정</h2>
           <input
             value={office.name}
             onChange={(e) => setOffice((o) => ({ ...o, name: e.target.value }))}
@@ -348,7 +348,7 @@ export default function AdminDashboard({ profile }) {
 
         {/* 직원 근태 현황 (상태별 3칸) */}
         <div className={`${CARD} p-5`}>
-          <h2 className="font-semibold text-white mb-4">직원 근태 현황</h2>
+          <h2 className="font-semibold text-white mb-4">직원 근무 현황</h2>
           {summary.length === 0 ? (
             <p className="text-sm text-slate-400">아직 등록된 직원이 없습니다.</p>
           ) : (

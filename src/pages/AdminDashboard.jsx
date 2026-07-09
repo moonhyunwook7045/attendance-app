@@ -19,7 +19,8 @@ export default function AdminDashboard({ profile }) {
   // 근무지 목록 + 추가 폼
   const [offices, setOffices] = useState([])
   const [newOffice, setNewOffice] = useState({ name: '', lat: '', lng: '', radius: 100 })
-  const [editingId, setEditingId] = useState(null) // 수정 중인 근무지 id (null=추가)
+  const [editingId, setEditingId] = useState(null) // 인라인 수정 중인 근무지 id
+  const [editForm, setEditForm] = useState({ name: '', lat: '', lng: '', radius: 100 })
   const [savingOffice, setSavingOffice] = useState(false)
   const [officeMsg, setOfficeMsg] = useState('')
 
@@ -237,7 +238,7 @@ export default function AdminDashboard({ profile }) {
 
   function startEdit(o) {
     setEditingId(o.id)
-    setNewOffice({
+    setEditForm({
       name: o.name || '',
       lat: o.lat ?? '',
       lng: o.lng ?? '',
@@ -248,11 +249,19 @@ export default function AdminDashboard({ profile }) {
 
   function cancelEdit() {
     setEditingId(null)
-    setNewOffice({ name: '', lat: '', lng: '', radius: 100 })
     setOfficeMsg('')
   }
 
-  async function submitOffice() {
+  async function editUseMyLocation() {
+    try {
+      const c = await getCurrentPosition()
+      setEditForm((f) => ({ ...f, lat: c.lat, lng: c.lng }))
+    } catch {
+      setOfficeMsg('❌ 현재 위치를 가져오지 못했어요.')
+    }
+  }
+
+  async function addOffice() {
     setSavingOffice(true)
     setOfficeMsg('')
     try {
@@ -262,26 +271,48 @@ export default function AdminDashboard({ profile }) {
         setOfficeMsg('❌ 위도/경도를 입력하거나 "내 위치 사용"을 눌러주세요.')
         return
       }
-      const payload = {
+      const { error } = await supabase.from('offices').insert({
         name: newOffice.name || '근무지',
         lat,
         lng,
         radius: parseInt(newOffice.radius, 10) || 100,
-      }
-      if (editingId) {
-        const { error } = await supabase.from('offices').update(payload).eq('id', editingId)
-        if (error) throw error
-        setOfficeMsg('✅ 근무지가 수정되었어요.')
-      } else {
-        const { error } = await supabase.from('offices').insert(payload)
-        if (error) throw error
-        setOfficeMsg('✅ 근무지가 추가되었어요.')
-      }
-      setEditingId(null)
+      })
+      if (error) throw error
       setNewOffice({ name: '', lat: '', lng: '', radius: 100 })
+      setOfficeMsg('✅ 근무지가 추가되었어요.')
       await load()
     } catch (err) {
       setOfficeMsg('❌ 오류: ' + err.message + ' (offices 테이블 SQL을 실행했는지 확인하세요)')
+    } finally {
+      setSavingOffice(false)
+    }
+  }
+
+  async function saveEdit() {
+    setSavingOffice(true)
+    setOfficeMsg('')
+    try {
+      const lat = parseFloat(editForm.lat)
+      const lng = parseFloat(editForm.lng)
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        setOfficeMsg('❌ 위도/경도를 입력하거나 "내 위치 사용"을 눌러주세요.')
+        return
+      }
+      const { error } = await supabase
+        .from('offices')
+        .update({
+          name: editForm.name || '근무지',
+          lat,
+          lng,
+          radius: parseInt(editForm.radius, 10) || 100,
+        })
+        .eq('id', editingId)
+      if (error) throw error
+      setEditingId(null)
+      setOfficeMsg('✅ 근무지가 수정되었어요.')
+      await load()
+    } catch (err) {
+      setOfficeMsg('❌ 오류: ' + err.message)
     } finally {
       setSavingOffice(false)
     }
@@ -338,30 +369,83 @@ export default function AdminDashboard({ profile }) {
           {offices.length > 0 && (
             <ul className="space-y-2 mb-4">
               {offices.map((o) => (
-                <li
-                  key={o.id}
-                  className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-white truncate">{o.name || '근무지'}</div>
-                    <div className="text-[11px] text-slate-400 truncate">
-                      {Number(o.lat).toFixed(5)}, {Number(o.lng).toFixed(5)} · 반경 {o.radius || 100}m
+                <li key={o.id} className="rounded-lg border border-white/10 bg-white/5">
+                  {editingId === o.id ? (
+                    // 인라인 수정 폼
+                    <div className="p-3 space-y-2">
+                      <input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="근무지 이름"
+                        className={`w-full ${INPUT}`}
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <input
+                          value={editForm.lat}
+                          onChange={(e) => setEditForm((f) => ({ ...f, lat: e.target.value }))}
+                          placeholder="위도"
+                          className={INPUT}
+                        />
+                        <input
+                          value={editForm.lng}
+                          onChange={(e) => setEditForm((f) => ({ ...f, lng: e.target.value }))}
+                          placeholder="경도"
+                          className={INPUT}
+                        />
+                        <input
+                          value={editForm.radius}
+                          onChange={(e) => setEditForm((f) => ({ ...f, radius: e.target.value }))}
+                          placeholder="반경(m)"
+                          className={INPUT}
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={editUseMyLocation}
+                          className="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 text-xs font-medium py-2 rounded-lg transition"
+                        >
+                          내 위치
+                        </button>
+                        <button
+                          onClick={saveEdit}
+                          disabled={savingOffice}
+                          className="bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg transition"
+                        >
+                          {savingOffice ? '저장 중…' : '저장'}
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-medium py-2 rounded-lg transition"
+                        >
+                          취소
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      onClick={() => startEdit(o)}
-                      className="text-xs text-sky-300 border border-sky-400/30 hover:bg-sky-500 hover:text-white px-2.5 py-1 rounded-lg transition"
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => deleteOffice(o.id)}
-                      className="text-xs text-rose-300 border border-rose-400/30 hover:bg-rose-500 hover:text-white px-2.5 py-1 rounded-lg transition"
-                    >
-                      삭제
-                    </button>
-                  </div>
+                  ) : (
+                    // 일반 표시
+                    <div className="flex items-center gap-3 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-white truncate">{o.name || '근무지'}</div>
+                        <div className="text-[11px] text-slate-400 truncate">
+                          {Number(o.lat).toFixed(5)}, {Number(o.lng).toFixed(5)} · 반경 {o.radius || 100}m
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          onClick={() => startEdit(o)}
+                          className="text-xs text-sky-300 border border-sky-400/30 hover:bg-sky-500 hover:text-white px-2.5 py-1 rounded-lg transition"
+                        >
+                          수정
+                        </button>
+                        <button
+                          onClick={() => deleteOffice(o.id)}
+                          className="text-xs text-rose-300 border border-rose-400/30 hover:bg-rose-500 hover:text-white px-2.5 py-1 rounded-lg transition"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -369,16 +453,8 @@ export default function AdminDashboard({ profile }) {
 
           {/* 근무지 추가 */}
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-200">
-                <span className="text-fuchsia-300 text-lg leading-none">{editingId ? '✎' : '＋'}</span>
-                {editingId ? '근무지 수정' : '근무지 추가'}
-              </div>
-              {editingId && (
-                <button onClick={cancelEdit} className="text-xs text-slate-400 hover:text-slate-200">
-                  취소
-                </button>
-              )}
+            <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+              <span className="text-fuchsia-300 text-lg leading-none">＋</span> 근무지 추가
             </div>
             <input
               value={newOffice.name}
@@ -414,11 +490,11 @@ export default function AdminDashboard({ profile }) {
                 내 현재 위치 사용
               </button>
               <button
-                onClick={submitOffice}
+                onClick={addOffice}
                 disabled={savingOffice}
                 className="bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-fuchsia-500/20 transition"
               >
-                {savingOffice ? '저장 중…' : editingId ? '수정 저장' : '＋ 근무지 추가'}
+                {savingOffice ? '추가 중…' : '＋ 근무지 추가'}
               </button>
             </div>
           </div>

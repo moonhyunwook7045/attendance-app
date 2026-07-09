@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 import {
   pad,
+  dateKey,
   fmtHours,
-  totalMs,
   dailyTotals,
   distanceMeters,
   getCurrentPosition,
@@ -85,13 +85,18 @@ function PunchTab({ userId, now }) {
   }, [])
 
   async function loadToday() {
-    const start = new Date()
-    start.setHours(0, 0, 0, 0)
+    // 이번주·이번달 계산을 위해 (주 시작 or 월 시작 중 이른 날)부터 불러옴
+    const n = new Date()
+    const monthStart = new Date(n.getFullYear(), n.getMonth(), 1)
+    const weekStart = new Date(n)
+    weekStart.setHours(0, 0, 0, 0)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+    const rangeStart = weekStart < monthStart ? weekStart : monthStart
     const { data } = await supabase
       .from('attendance')
       .select('*')
       .eq('user_id', userId)
-      .gte('created_at', start.toISOString())
+      .gte('created_at', rangeStart.toISOString())
       .order('created_at', { ascending: false })
     setRecords(data || [])
   }
@@ -142,15 +147,38 @@ function PunchTab({ userId, now }) {
     }
   }
 
-  // 오름차순 정렬 후 누적시간 계산
-  const todayMs = useMemo(() => {
+  // 오늘/이번주/이번달 누적 근무시간
+  const stats = useMemo(() => {
     const asc = [...records].sort(
       (a, b) => new Date(a.created_at) - new Date(b.created_at),
     )
-    return totalMs(asc, now)
+    const dt = dailyTotals(asc, now)
+    const todayKey = dateKey(now)
+    const monthPrefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-`
+    const ws = new Date(now)
+    ws.setHours(0, 0, 0, 0)
+    ws.setDate(ws.getDate() - ws.getDay())
+    const weekStartKey = dateKey(ws)
+    let today = 0
+    let week = 0
+    let month = 0
+    for (const k in dt) {
+      if (k === todayKey) today += dt[k]
+      if (k >= weekStartKey) week += dt[k]
+      if (k.startsWith(monthPrefix)) month += dt[k]
+    }
+    return { today, week, month }
   }, [records, now])
 
-  const last = records[0] // 내림차순이므로 0번이 최신
+  // 오늘 기록만 (상태 배지 + 목록용, 최신순)
+  const todayRecords = useMemo(() => {
+    const tk = dateKey(now)
+    return records
+      .filter((r) => dateKey(new Date(r.created_at)) === tk)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  }, [records, now])
+
+  const last = todayRecords[0]
   const status = !last ? 'before' : last.type === 'check_in' ? 'working' : 'done'
   const statusLabel = { before: '출근 전', working: '근무 중', done: '퇴근' }[status]
   const statusColor = {
@@ -179,9 +207,10 @@ function PunchTab({ userId, now }) {
         >
           {statusLabel}
         </span>
-        <div className="mt-4 text-sm text-slate-400">
-          오늘 누적 근무시간{' '}
-          <strong className="text-white">{fmtHours(todayMs)}</strong>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <Stat label="오늘" value={fmtHours(stats.today)} />
+          <Stat label="이번주" value={fmtHours(stats.week)} />
+          <Stat label="이번달" value={fmtHours(stats.month)} />
         </div>
       </div>
 
@@ -233,11 +262,11 @@ function PunchTab({ userId, now }) {
       {/* 오늘 내 기록 */}
       <div className={`${CARD} p-6 mt-4`}>
         <h2 className="font-semibold text-white mb-3">오늘 내 기록</h2>
-        {records.length === 0 ? (
+        {todayRecords.length === 0 ? (
           <p className="text-sm text-slate-400">아직 기록이 없습니다.</p>
         ) : (
           <ul className="space-y-3">
-            {records.map((r) => (
+            {todayRecords.map((r) => (
               <li key={r.id} className="flex items-center gap-3">
                 {r.photo_url ? (
                   <img src={r.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover" />

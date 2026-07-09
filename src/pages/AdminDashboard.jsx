@@ -344,44 +344,28 @@ export default function AdminDashboard({ profile }) {
           {officeMsg && <p className="text-sm mt-2 text-slate-200">{officeMsg}</p>}
         </div>
 
-        {/* 직원 근태 현황 */}
+        {/* 직원 근태 현황 (상태별 3칸) */}
         <div className={`${CARD} p-5`}>
-          <h2 className="font-semibold text-white mb-3">직원 근태 현황</h2>
+          <h2 className="font-semibold text-white mb-4">직원 근태 현황</h2>
           {summary.length === 0 ? (
             <p className="text-sm text-slate-400">아직 등록된 직원이 없습니다.</p>
           ) : (
-            <div className="divide-y divide-white/10">
-              <div className="grid grid-cols-4 gap-2 text-[11px] text-slate-500 pb-2">
-                <span>이름</span>
-                <span>오늘 상태</span>
-                <span className="text-right">오늘</span>
-                <span className="text-right">이번 달</span>
-              </div>
-              {summary.map((s) => (
-                <div key={s.id} className="grid grid-cols-4 gap-2 items-center py-2.5 text-sm">
-                  <span className="text-slate-100 truncate">
-                    {s.name}
-                    {s.id === profile?.id ? ' (나)' : ''}
-                  </span>
-                  <span
-                    className={`text-xs font-semibold ${
-                      s.todayStatus === 'working'
-                        ? 'text-amber-300'
-                        : s.todayStatus === 'done'
-                          ? 'text-emerald-300'
-                          : 'text-slate-500'
-                    }`}
-                  >
-                    {{ before: '출근 전', working: '근무 중', done: '퇴근' }[s.todayStatus]}
-                  </span>
-                  <span className="text-right text-slate-300 tabular-nums">
-                    {fmtHours(s.todayMs)}
-                  </span>
-                  <span className="text-right text-slate-300 tabular-nums">
-                    {fmtHours(s.monthMs)}
-                  </span>
-                </div>
-              ))}
+            <div className="grid grid-cols-3 gap-2">
+              <StatusColumn
+                title="출근 전"
+                color="slate"
+                people={summary.filter((s) => s.todayStatus === 'before')}
+              />
+              <StatusColumn
+                title="근무 중"
+                color="amber"
+                people={summary.filter((s) => s.todayStatus === 'working')}
+              />
+              <StatusColumn
+                title="퇴근"
+                color="emerald"
+                people={summary.filter((s) => s.todayStatus === 'done')}
+              />
             </div>
           )}
         </div>
@@ -529,6 +513,37 @@ function PunchCell({ label, record, color, onZoom }) {
         <div className="mt-2 w-full aspect-[4/1] rounded-lg bg-white/5 flex items-center justify-center text-xs text-slate-600">
           기록 없음
         </div>
+      )}
+    </div>
+  )
+}
+
+// 근태 상태별 칸 (출근 전 / 근무 중 / 퇴근)
+function StatusColumn({ title, color, people }) {
+  const styles = {
+    slate: 'bg-slate-400 text-slate-300',
+    amber: 'bg-amber-400 text-amber-300',
+    emerald: 'bg-emerald-400 text-emerald-300',
+  }[color]
+  const [dot, text] = styles.split(' ')
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className={`h-2 w-2 rounded-full ${dot}`} />
+        <span className={`text-xs font-semibold ${text}`}>{title}</span>
+        <span className="text-[11px] text-slate-500">{people.length}</span>
+      </div>
+      {people.length === 0 ? (
+        <p className="text-[11px] text-slate-600 py-1">-</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {people.map((p) => (
+            <li key={p.id} className="rounded-lg bg-white/5 px-2 py-1.5">
+              <div className="text-sm text-slate-100 truncate">{p.name}</div>
+              <div className="text-[11px] text-slate-400 tabular-nums">{fmtHours(p.todayMs)}</div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

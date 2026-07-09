@@ -16,8 +16,9 @@ export default function AdminDashboard({ profile }) {
   const [deleting, setDeleting] = useState(null) // 삭제 중인 세션 key
   const [openUserId, setOpenUserId] = useState(null) // 폴더 열어본 직원
 
-  // 사업장 위치 설정
-  const [office, setOffice] = useState({ name: '', lat: '', lng: '', radius: 100 })
+  // 근무지 목록 + 추가 폼
+  const [offices, setOffices] = useState([])
+  const [newOffice, setNewOffice] = useState({ name: '', lat: '', lng: '', radius: 100 })
   const [savingOffice, setSavingOffice] = useState(false)
   const [officeMsg, setOfficeMsg] = useState('')
 
@@ -41,20 +42,12 @@ export default function AdminDashboard({ profile }) {
       map[p.id] = p.name
     })
 
-    // 사업장 설정 (테이블이 아직 없어도 앱은 정상 동작)
-    const { data: cfg } = await supabase
-      .from('office_config')
+    // 근무지 목록 (테이블이 아직 없어도 앱은 정상 동작)
+    const { data: offs } = await supabase
+      .from('offices')
       .select('*')
-      .eq('id', 1)
-      .maybeSingle()
-    if (cfg) {
-      setOffice({
-        name: cfg.name || '',
-        lat: cfg.lat ?? '',
-        lng: cfg.lng ?? '',
-        radius: cfg.radius ?? 100,
-      })
-    }
+      .order('created_at', { ascending: true })
+    setOffices(offs || [])
 
     setNames(map)
     setProfiles(profs || [])
@@ -235,35 +228,47 @@ export default function AdminDashboard({ profile }) {
   async function useMyLocation() {
     try {
       const c = await getCurrentPosition()
-      setOffice((o) => ({ ...o, lat: c.lat, lng: c.lng }))
+      setNewOffice((o) => ({ ...o, lat: c.lat, lng: c.lng }))
     } catch {
       setOfficeMsg('❌ 현재 위치를 가져오지 못했어요.')
     }
   }
 
-  async function saveOffice() {
+  async function addOffice() {
     setSavingOffice(true)
     setOfficeMsg('')
     try {
-      const cfg = {
-        id: 1,
-        name: office.name || '사업장',
-        lat: parseFloat(office.lat),
-        lng: parseFloat(office.lng),
-        radius: parseInt(office.radius, 10) || 100,
-      }
-      if (Number.isNaN(cfg.lat) || Number.isNaN(cfg.lng)) {
+      const lat = parseFloat(newOffice.lat)
+      const lng = parseFloat(newOffice.lng)
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
         setOfficeMsg('❌ 위도/경도를 입력하거나 "내 위치 사용"을 눌러주세요.')
         return
       }
-      const { error } = await supabase.from('office_config').upsert(cfg)
+      const { error } = await supabase.from('offices').insert({
+        name: newOffice.name || '근무지',
+        lat,
+        lng,
+        radius: parseInt(newOffice.radius, 10) || 100,
+      })
       if (error) throw error
-      setOfficeMsg('✅ 사업장 위치가 저장되었어요.')
+      setNewOffice({ name: '', lat: '', lng: '', radius: 100 })
+      setOfficeMsg('✅ 근무지가 추가되었어요.')
+      await load()
     } catch (err) {
-      setOfficeMsg('❌ 오류: ' + err.message + ' (office_config 테이블 SQL을 실행했는지 확인하세요)')
+      setOfficeMsg('❌ 오류: ' + err.message + ' (offices 테이블 SQL을 실행했는지 확인하세요)')
     } finally {
       setSavingOffice(false)
     }
+  }
+
+  async function deleteOffice(id) {
+    if (!window.confirm('이 근무지를 삭제할까요?')) return
+    const { error } = await supabase.from('offices').delete().eq('id', id)
+    if (error) {
+      alert('삭제 실패: ' + error.message)
+      return
+    }
+    await load()
   }
 
   return (
@@ -302,46 +307,78 @@ export default function AdminDashboard({ profile }) {
         {/* 사업장 위치 설정 */}
         <div className={`${CARD} p-5`}>
           <h2 className="font-semibold text-white mb-3">근무지 위치설정</h2>
-          <input
-            value={office.name}
-            onChange={(e) => setOffice((o) => ({ ...o, name: e.target.value }))}
-            placeholder="사업장 이름"
-            className={`w-full mb-2 ${INPUT}`}
-          />
-          <div className="grid grid-cols-3 gap-2 mb-2">
+
+          {/* 등록된 근무지 목록 */}
+          {offices.length > 0 && (
+            <ul className="space-y-2 mb-4">
+              {offices.map((o) => (
+                <li
+                  key={o.id}
+                  className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-white truncate">{o.name || '근무지'}</div>
+                    <div className="text-[11px] text-slate-400 truncate">
+                      {Number(o.lat).toFixed(5)}, {Number(o.lng).toFixed(5)} · 반경 {o.radius || 100}m
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteOffice(o.id)}
+                    className="shrink-0 text-xs text-rose-300 border border-rose-400/30 hover:bg-rose-500 hover:text-white px-2.5 py-1 rounded-lg transition"
+                  >
+                    삭제
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* 근무지 추가 */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+              <span className="text-fuchsia-300 text-lg leading-none">＋</span> 근무지 추가
+            </div>
             <input
-              value={office.lat}
-              onChange={(e) => setOffice((o) => ({ ...o, lat: e.target.value }))}
-              placeholder="위도"
-              className={INPUT}
+              value={newOffice.name}
+              onChange={(e) => setNewOffice((o) => ({ ...o, name: e.target.value }))}
+              placeholder="근무지 이름 (예: 본사)"
+              className={`w-full mb-2 ${INPUT}`}
             />
-            <input
-              value={office.lng}
-              onChange={(e) => setOffice((o) => ({ ...o, lng: e.target.value }))}
-              placeholder="경도"
-              className={INPUT}
-            />
-            <input
-              value={office.radius}
-              onChange={(e) => setOffice((o) => ({ ...o, radius: e.target.value }))}
-              placeholder="반경(m)"
-              className={INPUT}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={useMyLocation}
-              className="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 font-medium py-2.5 rounded-lg text-sm transition"
-            >
-              내 현재 위치 사용
-            </button>
-            <button
-              onClick={saveOffice}
-              disabled={savingOffice}
-              className="bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-fuchsia-500/20 transition"
-            >
-              {savingOffice ? '저장 중…' : '저장'}
-            </button>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <input
+                value={newOffice.lat}
+                onChange={(e) => setNewOffice((o) => ({ ...o, lat: e.target.value }))}
+                placeholder="위도"
+                className={INPUT}
+              />
+              <input
+                value={newOffice.lng}
+                onChange={(e) => setNewOffice((o) => ({ ...o, lng: e.target.value }))}
+                placeholder="경도"
+                className={INPUT}
+              />
+              <input
+                value={newOffice.radius}
+                onChange={(e) => setNewOffice((o) => ({ ...o, radius: e.target.value }))}
+                placeholder="반경(m)"
+                className={INPUT}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={useMyLocation}
+                className="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 font-medium py-2.5 rounded-lg text-sm transition"
+              >
+                내 현재 위치 사용
+              </button>
+              <button
+                onClick={addOffice}
+                disabled={savingOffice}
+                className="bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-fuchsia-500/20 transition"
+              >
+                {savingOffice ? '추가 중…' : '＋ 근무지 추가'}
+              </button>
+            </div>
           </div>
           {officeMsg && <p className="text-sm mt-2 text-slate-200">{officeMsg}</p>}
         </div>

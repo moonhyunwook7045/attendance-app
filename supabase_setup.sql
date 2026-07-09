@@ -29,7 +29,7 @@ alter table public.attendance add column if not exists lat double precision;
 alter table public.attendance add column if not exists lng double precision;
 alter table public.attendance add column if not exists distance integer;
 
--- 3) office_config 테이블 (GPS 위치체크인용 사업장 위치 설정)
+-- 3) office_config 테이블 (구버전 단일 근무지 — 하위호환용)
 create table if not exists public.office_config (
   id int primary key default 1,
   name text,
@@ -37,6 +37,16 @@ create table if not exists public.office_config (
   lng double precision,
   radius integer default 100,
   updated_at timestamptz default now()
+);
+
+-- 3-2) offices 테이블 (여러 근무지)
+create table if not exists public.offices (
+  id uuid primary key default gen_random_uuid(),
+  name text not null default '근무지',
+  lat double precision,
+  lng double precision,
+  radius integer default 100,
+  created_at timestamptz default now()
 );
 
 -- 4) 회원가입 시 profiles 자동 생성 트리거
@@ -75,6 +85,7 @@ $$;
 alter table public.profiles enable row level security;
 alter table public.attendance enable row level security;
 alter table public.office_config enable row level security;
+alter table public.offices enable row level security;
 
 -- 7) (선택) 구버전 정책 정리 — 중복 방지용. 없으면 그냥 넘어갑니다.
 drop policy if exists "profiles viewable by authenticated" on public.profiles;
@@ -114,6 +125,15 @@ create policy "office_select" on public.office_config
 
 drop policy if exists "office_write" on public.office_config;
 create policy "office_write" on public.office_config
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- offices 정책: 로그인 사용자는 조회, 관리자만 추가/수정/삭제
+drop policy if exists "offices_select" on public.offices;
+create policy "offices_select" on public.offices
+  for select to authenticated using (true);
+
+drop policy if exists "offices_write" on public.offices;
+create policy "offices_write" on public.offices
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- 11) 출퇴근 사진용 스토리지 버킷 (공개 URL로 사용)

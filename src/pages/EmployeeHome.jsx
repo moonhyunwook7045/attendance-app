@@ -388,9 +388,9 @@ function Stat({ label, value }) {
 // 탭 3: GPS 위치 기반 체크인
 // ---------------------------------------------------------------------------
 function GpsTab({ userId }) {
-  const [office, setOffice] = useState(null)
+  const [offices, setOffices] = useState([])
   const [coords, setCoords] = useState(null)
-  const [distance, setDistance] = useState(null)
+  const [nearest, setNearest] = useState(null) // { office, distance }
   const [status, setStatus] = useState('idle') // idle | locating | done | error
   const [errMsg, setErrMsg] = useState('')
   const [punching, setPunching] = useState(false)
@@ -398,12 +398,8 @@ function GpsTab({ userId }) {
 
   useEffect(() => {
     ;(async () => {
-      const { data } = await supabase
-        .from('office_config')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle()
-      setOffice(data || null)
+      const { data } = await supabase.from('offices').select('*')
+      setOffices(data || [])
     })()
   }, [])
 
@@ -414,9 +410,14 @@ function GpsTab({ userId }) {
     try {
       const c = await getCurrentPosition()
       setCoords(c)
-      if (office && office.lat != null && office.lng != null) {
-        setDistance(distanceMeters(c.lat, c.lng, office.lat, office.lng))
+      // 등록된 근무지 중 가장 가까운 곳 찾기
+      let best = null
+      for (const o of offices) {
+        if (o.lat == null || o.lng == null) continue
+        const d = distanceMeters(c.lat, c.lng, o.lat, o.lng)
+        if (!best || d < best.distance) best = { office: o, distance: d }
       }
+      setNearest(best)
       setStatus('done')
     } catch (err) {
       setStatus('error')
@@ -428,13 +429,12 @@ function GpsTab({ userId }) {
     }
   }
 
-  const withinRange = office && distance !== null && distance <= (office.radius || 100)
+  const withinRange = nearest && nearest.distance <= (nearest.office.radius || 100)
 
   async function punchWithLocation() {
     setPunching(true)
     setMessage('')
     try {
-      // 오늘 마지막 기록으로 출/퇴근 판별
       const start = new Date()
       start.setHours(0, 0, 0, 0)
       const { data: today } = await supabase
@@ -453,7 +453,7 @@ function GpsTab({ userId }) {
         photo_url: null,
         lat: coords.lat,
         lng: coords.lng,
-        distance: Math.round(distance || 0),
+        distance: Math.round(nearest?.distance || 0),
       })
       if (error) throw error
       setMessage(
@@ -468,22 +468,20 @@ function GpsTab({ userId }) {
 
   return (
     <div className={`${CARD} p-6 mt-4`}>
-      <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-        📍 위치 기반 체크인
-      </h2>
+      <h2 className="font-semibold text-white mb-4">위치 기반 체크인</h2>
 
-      {!office ? (
+      {offices.length === 0 ? (
         <p className="text-sm text-slate-400">
-          관리자가 아직 사업장 위치를 설정하지 않았어요. 관리자에게 요청해주세요.
+          관리자가 아직 근무지를 설정하지 않았어요. 관리자에게 요청해주세요.
         </p>
       ) : (
         <>
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-4">
-            <div className="font-semibold text-white text-sm">
-              {office.name || '사업장'}
+            <div className="text-sm text-slate-300">
+              등록된 근무지 <strong className="text-white">{offices.length}곳</strong>
             </div>
             <div className="text-xs text-slate-400 mt-0.5">
-              허용 반경 {office.radius || 100}m
+              가장 가까운 근무지 기준으로 체크인돼요.
             </div>
           </div>
 
@@ -497,19 +495,18 @@ function GpsTab({ userId }) {
 
           {status === 'error' && <p className="text-sm text-rose-300 mt-3">{errMsg}</p>}
 
-          {status === 'done' && coords && (
+          {status === 'done' && nearest && (
             <div
               className={`mt-4 rounded-xl p-3 text-center ${
                 withinRange ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
               }`}
             >
-              {distance !== null && (
-                <div className="text-sm">
-                  사업장까지 <strong>{Math.round(distance)}m</strong>
-                </div>
-              )}
+              <div className="text-sm">
+                <strong>{nearest.office.name || '근무지'}</strong>까지{' '}
+                <strong>{Math.round(nearest.distance)}m</strong>
+              </div>
               <div className="text-sm font-bold mt-1">
-                {withinRange ? '✓ 사업장 범위 안에 있어요' : '✗ 사업장 범위를 벗어났어요'}
+                {withinRange ? '✓ 근무지 범위 안에 있어요' : '✗ 근무지 범위를 벗어났어요'}
               </div>
             </div>
           )}

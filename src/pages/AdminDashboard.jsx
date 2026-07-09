@@ -8,6 +8,7 @@ export default function AdminDashboard({ profile }) {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState(null) // 크게 볼 사진 URL
+  const [deleting, setDeleting] = useState(null) // 삭제 중인 세션 key
 
   // 사업장 위치 설정
   const [office, setOffice] = useState({ name: '', lat: '', lng: '', radius: 100 })
@@ -89,6 +90,79 @@ export default function AdminDashboard({ profile }) {
   }, [records, profiles])
 
   const workingNow = summary.filter((s) => s.todayStatus === 'working').length
+
+  // 출근→퇴근을 한 세트(세션)로 그룹핑
+  const sessions = useMemo(() => {
+    const asc = [...records].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at),
+    )
+    const byUser = {}
+    for (const r of asc) (byUser[r.user_id] ||= []).push(r)
+
+    const make = (uid, ci, co) => {
+      const anchor = ci || co
+      return {
+        key: `${ci?.id || 'x'}_${co?.id || 'x'}`,
+        userId: uid,
+        checkIn: ci,
+        checkOut: co,
+        date: new Date(anchor.created_at),
+        durationMs: ci && co ? new Date(co.created_at) - new Date(ci.created_at) : null,
+        sortTime: new Date((co || ci).created_at).getTime(),
+        ids: [ci?.id, co?.id].filter(Boolean),
+        photoUrls: [ci?.photo_url, co?.photo_url].filter(Boolean),
+      }
+    }
+
+    const out = []
+    for (const [uid, rows] of Object.entries(byUser)) {
+      let open = null
+      for (const r of rows) {
+        if (r.type === 'check_in') {
+          if (open) out.push(make(uid, open, null))
+          open = r
+        } else {
+          if (open) {
+            out.push(make(uid, open, r))
+            open = null
+          } else {
+            out.push(make(uid, null, r))
+          }
+        }
+      }
+      if (open) out.push(make(uid, open, null))
+    }
+    return out.sort((a, b) => b.sortTime - a.sortTime)
+  }, [records])
+
+  // 세션(출근+퇴근 세트) 삭제 → 기록 + 사진 함께 삭제
+  async function deleteSession(s) {
+    const who = names[s.userId] || '직원'
+    const dateStr = s.date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+    if (
+      !window.confirm(
+        `${who}님의 ${dateStr} 근무 기록(출근·퇴근)을 삭제할까요?\n사진과 기록이 함께 삭제되며 되돌릴 수 없습니다.`,
+      )
+    )
+      return
+
+    setDeleting(s.key)
+    try {
+      // 1) 출퇴근 기록 삭제 → 통계·캘린더에서도 사라짐
+      const { error } = await supabase.from('attendance').delete().in('id', s.ids)
+      if (error) throw error
+      // 2) 사진 파일 삭제 (실패해도 기록은 이미 삭제됨)
+      const paths = s.photoUrls.map(extractStoragePath).filter(Boolean)
+      if (paths.length) {
+        await supabase.storage.from('attendance-photos').remove(paths)
+      }
+      await load()
+    } catch (err) {
+      alert('삭제 실패: ' + err.message)
+    } finally {
+      setDeleting(null)
+    }
+  }
 
   async function useMyLocation() {
     try {
@@ -246,54 +320,52 @@ export default function AdminDashboard({ profile }) {
           )}
         </div>
 
-        {/* 전체 출퇴근 기록 */}
+        {/* 전체 근무 기록 (출근·퇴근 세트, 관리자 삭제 가능) */}
         <div>
-          <h1 className="text-lg font-bold text-gray-800 mb-3">전체 출퇴근 기록</h1>
+          <h1 className="text-lg font-bold text-gray-800 mb-1">전체 근무 기록</h1>
+          <p className="text-xs text-gray-400 mb-3">
+            출근·퇴근을 한 세트로 관리합니다. 삭제하면 사진과 기록이 함께 지워지고 통계·캘린더에도 반영돼요.
+          </p>
           {loading ? (
             <p className="text-gray-500">불러오는 중...</p>
-          ) : records.length === 0 ? (
+          ) : sessions.length === 0 ? (
             <p className="text-gray-400">아직 기록이 없습니다.</p>
           ) : (
-            <div className="bg-white rounded-2xl shadow divide-y">
-              {records.map((r) => (
-                <div key={r.id} className="flex items-center gap-4 p-4">
-                  {r.photo_url ? (
-                    <img
-                      src={r.photo_url}
-                      alt=""
-                      onClick={() => setZoom(r.photo_url)}
-                      className="w-16 h-16 rounded-lg object-cover cursor-pointer hover:opacity-80"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xl">
-                      📍
+            <div className="space-y-3">
+              {sessions.map((s) => (
+                <div key={s.key} className="bg-white rounded-2xl shadow p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-800 truncate">
+                        {names[s.userId] || '알 수 없음'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {s.date.toLocaleDateString('ko-KR', {
+                          month: 'long',
+                          day: 'numeric',
+                          weekday: 'short',
+                        })}
+                        {s.durationMs != null ? (
+                          <span className="ml-2 font-medium text-blue-600">
+                            · {fmtHours(s.durationMs)}
+                          </span>
+                        ) : (
+                          <span className="ml-2 text-amber-600">· 미퇴근</span>
+                        )}
+                      </p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 truncate">
-                      {names[r.user_id] || '알 수 없음'}
-                    </p>
-                    <span
-                      className={`inline-block text-xs font-semibold px-2 py-0.5 rounded mt-1 ${
-                        r.type === 'check_in'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-orange-100 text-orange-700'
-                      }`}
+                    <button
+                      onClick={() => deleteSession(s)}
+                      disabled={deleting === s.key}
+                      className="shrink-0 text-sm text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"
                     >
-                      {r.type === 'check_in' ? '출근' : '퇴근'}
-                    </span>
-                    {r.distance != null && (
-                      <span className="ml-2 text-[11px] text-gray-400">📍 {r.distance}m</span>
-                    )}
+                      {deleting === s.key ? '삭제 중…' : '🗑 삭제'}
+                    </button>
                   </div>
-                  <p className="text-sm text-gray-500 text-right whitespace-nowrap">
-                    {new Date(r.created_at).toLocaleString('ko-KR', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <PunchCell label="출근" record={s.checkIn} color="blue" onZoom={setZoom} />
+                    <PunchCell label="퇴근" record={s.checkOut} color="orange" onZoom={setZoom} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -308,6 +380,55 @@ export default function AdminDashboard({ profile }) {
           className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
         >
           <img src={zoom} alt="" className="max-h-full max-w-full rounded-lg" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 공개 URL에서 스토리지 경로(userId/파일명) 추출
+function extractStoragePath(publicUrl) {
+  if (!publicUrl) return null
+  const marker = '/attendance-photos/'
+  const i = publicUrl.indexOf(marker)
+  return i === -1 ? null : publicUrl.slice(i + marker.length)
+}
+
+// 출근/퇴근 한 칸 (사진 + 시간)
+function PunchCell({ label, record, color, onZoom }) {
+  const badge = color === 'blue' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+  return (
+    <div className="rounded-xl border border-gray-100 p-2">
+      <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded ${badge}`}>
+        {label}
+      </span>
+      {record ? (
+        <>
+          {record.photo_url ? (
+            <img
+              src={record.photo_url}
+              alt=""
+              onClick={() => onZoom(record.photo_url)}
+              className="mt-2 w-full aspect-square object-cover rounded-lg cursor-pointer hover:opacity-80"
+            />
+          ) : (
+            <div className="mt-2 w-full aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-2xl text-gray-400">
+              📍
+            </div>
+          )}
+          <p className="mt-1 text-xs text-gray-600 tabular-nums">
+            {new Date(record.created_at).toLocaleTimeString('ko-KR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+            {record.distance != null && (
+              <span className="text-gray-400"> · {record.distance}m</span>
+            )}
+          </p>
+        </>
+      ) : (
+        <div className="mt-2 w-full aspect-square rounded-lg bg-gray-50 flex items-center justify-center text-xs text-gray-300">
+          기록 없음
         </div>
       )}
     </div>

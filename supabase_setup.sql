@@ -102,6 +102,11 @@ drop policy if exists "attendance_select" on public.attendance;
 create policy "attendance_select" on public.attendance
   for select using (auth.uid() = user_id or public.is_admin());
 
+-- 관리자만 출퇴근 기록 삭제 가능
+drop policy if exists "attendance_delete" on public.attendance;
+create policy "attendance_delete" on public.attendance
+  for delete using (public.is_admin());
+
 -- 10) office_config 정책: 로그인 사용자는 조회, 관리자만 저장/수정
 drop policy if exists "office_select" on public.office_config;
 create policy "office_select" on public.office_config
@@ -127,6 +132,11 @@ create policy "attendance_photos_insert" on storage.objects
 drop policy if exists "attendance_photos_select" on storage.objects;
 create policy "attendance_photos_select" on storage.objects
   for select using (bucket_id = 'attendance-photos');
+
+-- 관리자만 사진 삭제 가능
+drop policy if exists "attendance_photos_delete" on storage.objects;
+create policy "attendance_photos_delete" on storage.objects
+  for delete using (bucket_id = 'attendance-photos' and public.is_admin());
 
 -- ============================================================
 -- 실행 후 할 일

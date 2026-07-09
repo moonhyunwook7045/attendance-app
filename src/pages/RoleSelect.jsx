@@ -20,7 +20,7 @@ export default function RoleSelect({ onPick }) {
               <path d="M12 7v5l3 2" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">출퇴근 관리</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">TIME TRACK</h1>
           <p className="mt-1.5 text-sm text-slate-500">로그인 유형을 선택하세요</p>
         </div>
 

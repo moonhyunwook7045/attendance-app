@@ -25,7 +25,7 @@ export default function EmployeeHome({ session, profile }) {
       {/* 상단 바 */}
       <header className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">출퇴근 관리</p>
+          <p className="text-sm text-gray-500">TIME TRACK</p>
           <p className="font-semibold text-gray-800">{profile?.name || '직원'}님</p>
         </div>
         <button

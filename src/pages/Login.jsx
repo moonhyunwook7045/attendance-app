@@ -127,7 +127,7 @@ export default function Login({ role = 'employee', notice = '', onBack }) {
                 {isAdmin ? '관리자 로그인' : '직원 로그인'}
               </span>
 
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">출퇴근 관리</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">TIME TRACK</h1>
               <p className="mt-1.5 text-sm text-slate-500">
                 {isAdmin
                   ? '직원 근태와 기록을 관리하세요'

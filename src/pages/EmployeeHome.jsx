@@ -150,7 +150,7 @@ function PunchTab({ userId, now }) {
 
   const last = records[0] // 내림차순이므로 0번이 최신
   const status = !last ? 'before' : last.type === 'check_in' ? 'working' : 'done'
-  const statusLabel = { before: '출근 전', working: '근무 중', done: '근무 종료' }[status]
+  const statusLabel = { before: '출근 전', working: '근무 중', done: '퇴근' }[status]
   const statusColor = {
     before: 'bg-gray-100 text-gray-500',
     working: 'bg-amber-100 text-amber-700',

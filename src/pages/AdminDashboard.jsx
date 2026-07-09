@@ -443,9 +443,12 @@ function EmployeeCalendar({ records, profiles }) {
   const [selectedId, setSelectedId] = useState('')
   const [cursor, setCursor] = useState(new Date())
 
+  // 관리자 제외, 직원(employee)만 표시
+  const employees = profiles.filter((p) => p.role === 'employee')
+
   // 직원 목록이 로드되면 첫 직원 자동 선택
   useEffect(() => {
-    if (!selectedId && profiles[0]) setSelectedId(profiles[0].id)
+    if (!selectedId && employees[0]) setSelectedId(employees[0].id)
   }, [profiles, selectedId])
 
   const year = cursor.getFullYear()
@@ -480,12 +483,12 @@ function EmployeeCalendar({ records, profiles }) {
       <h2 className="font-semibold text-gray-800 mb-3">📅 직원별 근무 캘린더</h2>
 
       {/* 직원 선택 */}
-      {profiles.length === 0 ? (
+      {employees.length === 0 ? (
         <p className="text-sm text-gray-400">직원이 없습니다.</p>
       ) : (
         <>
           <div className="flex flex-wrap gap-2 mb-4">
-            {profiles.map((p) => (
+            {employees.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setSelectedId(p.id)}

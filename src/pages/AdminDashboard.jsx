@@ -14,6 +14,7 @@ export default function AdminDashboard({ profile }) {
   const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState(null) // 크게 볼 사진 URL
   const [deleting, setDeleting] = useState(null) // 삭제 중인 세션 key
+  const [openUserId, setOpenUserId] = useState(null) // 폴더 열어본 직원
 
   // 사업장 위치 설정
   const [office, setOffice] = useState({ name: '', lat: '', lng: '', radius: 100 })
@@ -138,6 +139,25 @@ export default function AdminDashboard({ profile }) {
     }
     return out.sort((a, b) => b.sortTime - a.sortTime)
   }, [records])
+
+  // 직원별로 세션 그룹핑 (폴더)
+  const sessionsByUser = useMemo(() => {
+    const map = {}
+    for (const s of sessions) (map[s.userId] ||= []).push(s)
+    return map
+  }, [sessions])
+
+  const folderList = useMemo(
+    () =>
+      Object.keys(sessionsByUser)
+        .map((uid) => ({
+          userId: uid,
+          name: names[uid] || '알 수 없음',
+          count: sessionsByUser[uid].length,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+    [sessionsByUser, names],
+  )
 
   // 세션(출근+퇴근 세트) 삭제 → 기록 + 사진 함께 삭제
   async function deleteSession(s) {
@@ -382,49 +402,66 @@ export default function AdminDashboard({ profile }) {
             </button>
           </div>
           <p className="text-xs text-slate-400 mb-3">
-            출근·퇴근을 한 세트로 관리합니다. 삭제하면 사진과 기록이 함께 지워지고 통계·캘린더에도 반영돼요.
+            직원을 선택하면 해당 직원의 근무 기록을 볼 수 있어요. 삭제하면 사진·기록이 함께 지워지고 통계·캘린더에도 반영돼요.
           </p>
           {loading ? (
             <p className="text-slate-400">불러오는 중...</p>
-          ) : sessions.length === 0 ? (
+          ) : folderList.length === 0 ? (
             <p className="text-slate-500">아직 기록이 없습니다.</p>
-          ) : (
-            <div className="space-y-3">
-              {sessions.map((s) => (
-                <div key={s.key} className={`${CARD} p-4`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-white truncate">
-                        {names[s.userId] || '알 수 없음'}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {s.date.toLocaleDateString('ko-KR', {
-                          month: 'long',
-                          day: 'numeric',
-                          weekday: 'short',
-                        })}
-                        {s.durationMs != null ? (
-                          <span className="ml-2 font-medium text-sky-300">
-                            · {fmtHours(s.durationMs)}
-                          </span>
-                        ) : (
-                          <span className="ml-2 text-amber-300">· 미퇴근</span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => deleteSession(s)}
-                      disabled={deleting === s.key}
-                      className="shrink-0 text-sm text-rose-300 border border-rose-400/30 hover:bg-rose-500 hover:text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"
-                    >
-                      {deleting === s.key ? '삭제 중…' : '🗑 삭제'}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <PunchCell label="출근" record={s.checkIn} color="blue" onZoom={setZoom} />
-                    <PunchCell label="퇴근" record={s.checkOut} color="orange" onZoom={setZoom} />
-                  </div>
+          ) : openUserId ? (
+            <div>
+              <button
+                onClick={() => setOpenUserId(null)}
+                className="mb-3 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200"
+              >
+                ‹ 직원 목록
+              </button>
+              <p className="font-semibold text-white mb-3">
+                {names[openUserId] || '알 수 없음'}
+                <span className="ml-2 text-xs text-slate-400">
+                  {(sessionsByUser[openUserId] || []).length}건
+                </span>
+              </p>
+              {(sessionsByUser[openUserId] || []).length === 0 ? (
+                <p className="text-slate-500 text-sm">기록이 없습니다.</p>
+              ) : (
+                <div className="space-y-3">
+                  {(sessionsByUser[openUserId] || []).map((s) => (
+                    <SessionCard
+                      key={s.key}
+                      s={s}
+                      name={names[openUserId] || '알 수 없음'}
+                      deleting={deleting}
+                      onDelete={deleteSession}
+                      onZoom={setZoom}
+                    />
+                  ))}
                 </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {folderList.map((f) => (
+                <button
+                  key={f.userId}
+                  onClick={() => setOpenUserId(f.userId)}
+                  className={`${CARD} w-full flex items-center gap-3 p-4 text-left transition hover:bg-white/[0.09]`}
+                >
+                  <span className="text-2xl">📁</span>
+                  <span className="font-semibold text-white">{f.name}</span>
+                  <span className="text-xs text-slate-400">{f.count}건</span>
+                  <svg
+                    className="ml-auto h-5 w-5 text-slate-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
               ))}
             </div>
           )}
@@ -490,6 +527,42 @@ function PunchCell({ label, record, color, onZoom }) {
           기록 없음
         </div>
       )}
+    </div>
+  )
+}
+
+// 근무 세션 카드 (출근+퇴근 + 삭제)
+function SessionCard({ s, name, deleting, onDelete, onZoom }) {
+  return (
+    <div className={`${CARD} p-4`}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-white truncate">{name}</p>
+          <p className="text-xs text-slate-400">
+            {s.date.toLocaleDateString('ko-KR', {
+              month: 'long',
+              day: 'numeric',
+              weekday: 'short',
+            })}
+            {s.durationMs != null ? (
+              <span className="ml-2 font-medium text-sky-300">· {fmtHours(s.durationMs)}</span>
+            ) : (
+              <span className="ml-2 text-amber-300">· 미퇴근</span>
+            )}
+          </p>
+        </div>
+        <button
+          onClick={() => onDelete(s)}
+          disabled={deleting === s.key}
+          className="shrink-0 text-sm text-rose-300 border border-rose-400/30 hover:bg-rose-500 hover:text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+        >
+          {deleting === s.key ? '삭제 중…' : '🗑 삭제'}
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <PunchCell label="출근" record={s.checkIn} color="blue" onZoom={onZoom} />
+        <PunchCell label="퇴근" record={s.checkOut} color="orange" onZoom={onZoom} />
+      </div>
     </div>
   )
 }

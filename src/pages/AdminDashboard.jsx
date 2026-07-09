@@ -462,10 +462,10 @@ function PunchCell({ label, record, color, onZoom }) {
               src={record.photo_url}
               alt=""
               onClick={() => onZoom(record.photo_url)}
-              className="mt-2 w-full aspect-square object-cover rounded-lg cursor-pointer hover:opacity-80"
+              className="mt-2 w-full aspect-[4/1] object-cover rounded-lg cursor-pointer hover:opacity-80"
             />
           ) : (
-            <div className="mt-2 w-full aspect-square rounded-lg bg-white/10 flex items-center justify-center text-2xl text-slate-400">
+            <div className="mt-2 w-full aspect-[4/1] rounded-lg bg-white/10 flex items-center justify-center text-2xl text-slate-400">
               📍
             </div>
           )}
@@ -480,7 +480,7 @@ function PunchCell({ label, record, color, onZoom }) {
           </p>
         </>
       ) : (
-        <div className="mt-2 w-full aspect-square rounded-lg bg-white/5 flex items-center justify-center text-xs text-slate-600">
+        <div className="mt-2 w-full aspect-[4/1] rounded-lg bg-white/5 flex items-center justify-center text-xs text-slate-600">
           기록 없음
         </div>
       )}

@@ -76,7 +76,9 @@ export default function AdminDashboard({ profile }) {
       ;(byUser[r.user_id] ||= []).push(r)
     }
 
-    return profiles.map((p) => {
+    return profiles
+      .filter((p) => p.role === 'employee')
+      .map((p) => {
       const rows = byUser[p.id] || []
       const today = rows.filter((r) => dateKey(new Date(r.created_at)) === todayKey)
       const month = rows.filter((r) =>
@@ -289,7 +291,7 @@ export default function AdminDashboard({ profile }) {
         <div className="grid grid-cols-2 gap-3">
           <div className={`${CARD} p-4 text-center`}>
             <div className="text-xs text-slate-500 mb-1">전체 직원</div>
-            <div className="text-xl font-bold text-white">{profiles.length}명</div>
+            <div className="text-xl font-bold text-white">{summary.length}명</div>
           </div>
           <div className={`${CARD} p-4 text-center`}>
             <div className="text-xs text-slate-500 mb-1">현재 근무 중</div>

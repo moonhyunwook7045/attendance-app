@@ -178,7 +178,13 @@ export default function AdminDashboard({ profile }) {
         : ''
     const header = ['이름', '날짜', '출근', '퇴근', '근무시간', '근무시간(시간)']
     const data = [...sessions]
-      .sort((a, b) => a.sortTime - b.sortTime)
+      .sort((a, b) => {
+        // 사람별로 묶고(이름 순), 같은 사람 안에서는 시간 순
+        const na = names[a.userId] || ''
+        const nb = names[b.userId] || ''
+        if (na !== nb) return na.localeCompare(nb, 'ko')
+        return a.sortTime - b.sortTime
+      })
       .map((s) => {
         const name = names[s.userId] || '알 수 없음'
         const dateStr = `${s.date.getFullYear()}-${pad(s.date.getMonth() + 1)}-${pad(s.date.getDate())}`

@@ -187,12 +187,12 @@ function PunchTab({ userId, now }) {
 
       {/* 사진 촬영 */}
       <div className={`${CARD} p-6 mt-4`}>
-        <h2 className="font-semibold text-white mb-3">📷 사진으로 인증</h2>
+        <h2 className="font-semibold text-white mb-3">사진으로 인증</h2>
 
         {preview ? (
-          <img src={preview} alt="촬영한 사진" className="w-full rounded-xl mb-3 object-cover" />
+          <img src={preview} alt="촬영한 사진" className="w-full aspect-[2/1] rounded-xl mb-3 object-cover" />
         ) : (
-          <div className="w-full aspect-square bg-white/5 border border-white/10 rounded-xl mb-3 flex items-center justify-center text-slate-500 text-sm">
+          <div className="w-full aspect-[2/1] bg-white/5 border border-white/10 rounded-xl mb-3 flex items-center justify-center text-slate-500 text-sm">
             사진을 촬영하면 여기에 표시됩니다
           </div>
         )}

@@ -6,6 +6,7 @@ export default function Login() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -28,88 +29,238 @@ export default function Login() {
       if (error) {
         setError(translate(error.message))
       } else if (!data.session) {
-        // 이메일 확인이 켜져 있는 경우
         setInfo('가입 완료! 관리자에게 이메일 확인 설정을 꺼달라고 하거나, 메일함을 확인하세요.')
       }
     }
     setLoading(false)
   }
 
+  function switchMode(next) {
+    setMode(next)
+    setError('')
+    setInfo('')
+  }
+
+  const inputWrapClass =
+    'flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/90 px-4 transition duration-200 focus-within:border-sky-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-sky-100'
+  const inputClass =
+    'w-full bg-transparent py-3 text-slate-800 placeholder-slate-400 focus:outline-none'
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
-        <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🏢</div>
-          <h1 className="text-2xl font-bold text-gray-800">출퇴근 관리</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {mode === 'login' ? '로그인 후 사진으로 출퇴근하세요' : '계정을 만들어주세요'}
-          </p>
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-sky-50 px-4">
+      <style>{`
+        @keyframes login-rise {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blob-float-a {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(-24px, 20px); }
+        }
+        @keyframes blob-float-b {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(20px, -18px); }
+        }
+        .login-rise { animation: login-rise 0.5s ease-out both; }
+        .blob-a { animation: blob-float-a 14s ease-in-out infinite; }
+        .blob-b { animation: blob-float-b 18s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .login-rise, .blob-a, .blob-b { animation: none; }
+        }
+      `}</style>
+
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(99,102,241,0.12) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      />
+
+      <div className="blob-a pointer-events-none absolute -top-24 -right-20 h-80 w-80 rounded-full bg-sky-300/50 blur-3xl" />
+      <div className="blob-b pointer-events-none absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-indigo-300/45 blur-3xl" />
+      <div className="blob-a pointer-events-none absolute top-1/2 left-1/3 h-52 w-52 rounded-full bg-violet-200/40 blur-3xl" />
+
+      <div className="login-rise relative w-full max-w-sm">
+        <div className="overflow-hidden rounded-3xl border border-white/90 bg-white/80 shadow-2xl shadow-indigo-500/15 backdrop-blur-xl">
+          <div className="h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-violet-400" />
+
+          <div className="p-8 pt-6">
+            <div className="text-center mb-6">
+              <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-600 shadow-lg shadow-sky-400/40 ring-[5px] ring-indigo-500/10">
+                <svg
+                  className="h-7 w-7 text-white"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+              </div>
+
+              <span className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1 text-[11px] font-semibold tracking-wide text-indigo-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                근태관리 시스템
+              </span>
+
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">출퇴근 관리</h1>
+              <p className="mt-1.5 text-sm text-slate-500">
+                {mode === 'login' ? '로그인 후 사진으로 출퇴근하세요' : '계정을 만들어주세요'}
+              </p>
+            </div>
+
+            <div className="mb-6 grid grid-cols-2 gap-1 rounded-xl bg-slate-100/90 p-1">
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className={`rounded-lg py-2 text-sm font-semibold transition duration-200 ${
+                  mode === 'login'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                로그인
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('signup')}
+                className={`rounded-lg py-2 text-sm font-semibold transition duration-200 ${
+                  mode === 'signup'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                회원가입
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === 'signup' && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">이름</label>
+                  <div className={inputWrapClass}>
+                    <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
+                    </svg>
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className={inputClass}
+                      placeholder="홍길동"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">이메일</label>
+                <div className={inputWrapClass}>
+                  <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="m3 7 9 6 9-6" />
+                  </svg>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    placeholder="you@example.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">비밀번호</label>
+                <div className={inputWrapClass}>
+                  <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5" y="11" width="14" height="9" rx="2" />
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  </svg>
+                  <input
+                    type={showPw ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputClass}
+                    placeholder="6자 이상"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 보기'}
+                    className="shrink-0 text-slate-400 transition hover:text-slate-600 focus:outline-none"
+                  >
+                    {showPw ? (
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.6 5.2A9.8 9.8 0 0 1 12 5c7 0 10 7 10 7a15 15 0 0 1-2.2 3.1M6.6 6.6A14.6 14.6 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+                        <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                        <path d="m3 3 18 18" />
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+              )}
+              {info && (
+                <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-600">{info}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="group flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 py-3 font-semibold text-white shadow-lg shadow-sky-400/30 transition duration-200 hover:from-sky-600 hover:to-indigo-700 hover:shadow-xl hover:shadow-sky-400/40 focus:outline-none focus:ring-4 focus:ring-sky-200 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
+              >
+                {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+                {!loading && (
+                  <svg
+                    className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                )}
+              </button>
+            </form>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="홍길동"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="6자 이상"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {info && <p className="text-sm text-green-600">{info}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition"
-          >
-            {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
-          </button>
-        </form>
-
-        <div className="text-center mt-5 text-sm text-gray-500">
-          {mode === 'login' ? '계정이 없나요?' : '이미 계정이 있나요?'}{' '}
-          <button
-            onClick={() => {
-              setMode(mode === 'login' ? 'signup' : 'login')
-              setError('')
-              setInfo('')
-            }}
-            className="text-blue-600 font-medium hover:underline"
-          >
-            {mode === 'login' ? '회원가입' : '로그인'}
-          </button>
+        <div className="mt-5 flex justify-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-xs text-slate-600 backdrop-blur">
+            <svg className="h-3.5 w-3.5 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 7h2l2-3h6l2 3h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
+              <circle cx="12" cy="13" r="3.5" />
+            </svg>
+            간편 출퇴근
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-xs text-slate-600 backdrop-blur">
+            <svg className="h-3.5 w-3.5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            실시간 기록
+          </span>
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 
-export default function Login() {
+export default function Login({ role = 'employee', notice = '', onBack }) {
+  const isAdmin = role === 'admin'
   const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -10,6 +11,11 @@ export default function Login() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // 역할 불일치 안내 메시지를 에러 영역에 표시
+  useEffect(() => {
+    if (notice) setError(notice)
+  }, [notice])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -86,6 +92,16 @@ export default function Login() {
           <div className="h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-violet-400" />
 
           <div className="p-8 pt-6">
+            <button
+              type="button"
+              onClick={onBack}
+              className="mb-4 inline-flex items-center gap-1 text-sm text-slate-400 transition hover:text-slate-600"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              뒤로
+            </button>
             <div className="text-center mb-6">
               <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-600 shadow-lg shadow-sky-400/40 ring-[5px] ring-indigo-500/10">
                 <svg
@@ -102,41 +118,51 @@ export default function Login() {
                 </svg>
               </div>
 
-              <span className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1 text-[11px] font-semibold tracking-wide text-indigo-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                근태관리 시스템
+              <span
+                className={`mb-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide ${
+                  isAdmin ? 'bg-slate-800/10 text-slate-700' : 'bg-indigo-500/10 text-indigo-600'
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${isAdmin ? 'bg-slate-700' : 'bg-indigo-500'}`} />
+                {isAdmin ? '관리자 로그인' : '직원 로그인'}
               </span>
 
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">출퇴근 관리</h1>
               <p className="mt-1.5 text-sm text-slate-500">
-                {mode === 'login' ? '로그인 후 사진으로 출퇴근하세요' : '계정을 만들어주세요'}
+                {isAdmin
+                  ? '직원 근태와 기록을 관리하세요'
+                  : mode === 'login'
+                    ? '로그인 후 사진으로 출퇴근하세요'
+                    : '계정을 만들어주세요'}
               </p>
             </div>
 
-            <div className="mb-6 grid grid-cols-2 gap-1 rounded-xl bg-slate-100/90 p-1">
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                className={`rounded-lg py-2 text-sm font-semibold transition duration-200 ${
-                  mode === 'login'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                로그인
-              </button>
-              <button
-                type="button"
-                onClick={() => switchMode('signup')}
-                className={`rounded-lg py-2 text-sm font-semibold transition duration-200 ${
-                  mode === 'signup'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                회원가입
-              </button>
-            </div>
+            {!isAdmin && (
+              <div className="mb-6 grid grid-cols-2 gap-1 rounded-xl bg-slate-100/90 p-1">
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className={`rounded-lg py-2 text-sm font-semibold transition duration-200 ${
+                    mode === 'login'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  로그인
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode('signup')}
+                  className={`rounded-lg py-2 text-sm font-semibold transition duration-200 ${
+                    mode === 'signup'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  회원가입
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'signup' && (

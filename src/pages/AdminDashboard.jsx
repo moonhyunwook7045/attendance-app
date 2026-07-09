@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
-import { pad, dateKey, fmtHours, totalMs, getCurrentPosition } from '../lib/attendance'
+import { pad, dateKey, fmtHours, totalMs, dailyTotals, getCurrentPosition } from '../lib/attendance'
 
 export default function AdminDashboard({ profile }) {
   const [records, setRecords] = useState([])
@@ -320,6 +320,9 @@ export default function AdminDashboard({ profile }) {
           )}
         </div>
 
+        {/* 직원별 근무 캘린더 */}
+        <EmployeeCalendar records={records} profiles={profiles} />
+
         {/* 전체 근무 기록 (출근·퇴근 세트, 관리자 삭제 가능) */}
         <div>
           <h1 className="text-lg font-bold text-gray-800 mb-1">전체 근무 기록</h1>
@@ -431,6 +434,139 @@ function PunchCell({ label, record, color, onZoom }) {
           기록 없음
         </div>
       )}
+    </div>
+  )
+}
+
+// 직원별 근무 캘린더 (관리자용): 직원 선택 → 월별 근무시간 달력
+function EmployeeCalendar({ records, profiles }) {
+  const [selectedId, setSelectedId] = useState('')
+  const [cursor, setCursor] = useState(new Date())
+
+  // 직원 목록이 로드되면 첫 직원 자동 선택
+  useEffect(() => {
+    if (!selectedId && profiles[0]) setSelectedId(profiles[0].id)
+  }, [profiles, selectedId])
+
+  const year = cursor.getFullYear()
+  const month = cursor.getMonth()
+
+  const dayTotals = useMemo(() => {
+    const start = new Date(year, month, 1)
+    const end = new Date(year, month + 1, 1)
+    const rows = records
+      .filter(
+        (r) =>
+          r.user_id === selectedId &&
+          new Date(r.created_at) >= start &&
+          new Date(r.created_at) < end,
+      )
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    return dailyTotals(rows, new Date())
+  }, [records, selectedId, year, month])
+
+  const firstWeekday = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const cells = []
+  for (let i = 0; i < firstWeekday; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  const workedDays = Object.keys(dayTotals).filter((k) => dayTotals[k] > 0)
+  const monthTotalMs = workedDays.reduce((s, k) => s + dayTotals[k], 0)
+  const avgMs = workedDays.length ? monthTotalMs / workedDays.length : 0
+
+  return (
+    <div className="bg-white rounded-2xl shadow p-5">
+      <h2 className="font-semibold text-gray-800 mb-3">📅 직원별 근무 캘린더</h2>
+
+      {/* 직원 선택 */}
+      {profiles.length === 0 ? (
+        <p className="text-sm text-gray-400">직원이 없습니다.</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {profiles.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedId(p.id)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  selectedId === p.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {p.name || '이름없음'}
+              </button>
+            ))}
+          </div>
+
+          {/* 월 이동 */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setCursor(new Date(year, month - 1, 1))}
+              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600"
+            >
+              ‹
+            </button>
+            <div className="font-bold text-gray-800">
+              {year}년 {month + 1}월
+            </div>
+            <button
+              onClick={() => setCursor(new Date(year, month + 1, 1))}
+              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 mb-1">
+            {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
+              <div key={d} className="text-center text-[11px] text-gray-400 pb-1">
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {cells.map((d, i) => {
+              if (d === null) return <div key={i} className="aspect-square" />
+              const k = `${year}-${pad(month + 1)}-${pad(d)}`
+              const ms = dayTotals[k] || 0
+              const worked = ms > 0
+              return (
+                <div
+                  key={i}
+                  title={worked ? fmtHours(ms) : ''}
+                  className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] ${
+                    worked ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+                  }`}
+                >
+                  <span className={worked ? 'text-gray-800' : 'text-gray-400'}>{d}</span>
+                  {worked && (
+                    <span className="text-[9px] font-bold text-green-600">
+                      {(ms / 3600000).toFixed(1)}h
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mt-5">
+            <AdminStat label="근무일" value={`${workedDays.length}일`} />
+            <AdminStat label="총 근무시간" value={fmtHours(monthTotalMs)} />
+            <AdminStat label="일 평균" value={fmtHours(avgMs)} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function AdminStat({ label, value }) {
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-center">
+      <div className="text-[10px] text-gray-400 mb-1">{label}</div>
+      <div className="text-sm font-bold text-gray-800">{value}</div>
     </div>
   )
 }

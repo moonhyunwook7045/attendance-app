@@ -165,6 +165,37 @@ export default function AdminDashboard({ profile }) {
     }
   }
 
+  // 근무 기록 엑셀(CSV) 다운로드 — 엑셀에서 바로 열림
+  function downloadExcel() {
+    const fmtTime = (r) =>
+      r
+        ? new Date(r.created_at).toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          })
+        : ''
+    const header = ['이름', '날짜', '출근', '퇴근', '근무시간', '근무시간(시간)']
+    const rows = [...sessions]
+      .sort((a, b) => a.sortTime - b.sortTime)
+      .map((s) => {
+        const name = names[s.userId] || '알 수 없음'
+        const dateStr = `${s.date.getFullYear()}-${pad(s.date.getMonth() + 1)}-${pad(s.date.getDate())}`
+        const dur = s.durationMs != null ? fmtHours(s.durationMs) : ''
+        const hours = s.durationMs != null ? (s.durationMs / 3600000).toFixed(2) : ''
+        return [name, dateStr, fmtTime(s.checkIn), fmtTime(s.checkOut), dur, hours]
+      })
+    const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const now = new Date()
+    a.href = url
+    a.download = `근무기록_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function useMyLocation() {
     try {
       const c = await getCurrentPosition()
@@ -326,7 +357,16 @@ export default function AdminDashboard({ profile }) {
 
         {/* 전체 근무 기록 (출근·퇴근 세트, 관리자 삭제 가능) */}
         <div>
-          <h1 className="text-lg font-bold text-white mb-1">전체 근무 기록</h1>
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-lg font-bold text-white">전체 근무 기록</h1>
+            <button
+              onClick={downloadExcel}
+              disabled={sessions.length === 0}
+              className="text-sm text-emerald-300 border border-emerald-400/30 hover:bg-emerald-500 hover:text-white px-3 py-1.5 rounded-lg transition disabled:opacity-40"
+            >
+              ⬇ 엑셀 다운로드
+            </button>
+          </div>
           <p className="text-xs text-slate-400 mb-3">
             출근·퇴근을 한 세트로 관리합니다. 삭제하면 사진과 기록이 함께 지워지고 통계·캘린더에도 반영돼요.
           </p>
@@ -396,6 +436,12 @@ function extractStoragePath(publicUrl) {
   const marker = '/attendance-photos/'
   const i = publicUrl.indexOf(marker)
   return i === -1 ? null : publicUrl.slice(i + marker.length)
+}
+
+// CSV 셀 이스케이프 (쉼표·따옴표·줄바꿈 처리)
+function csvCell(v) {
+  const s = String(v ?? '')
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
 // 출근/퇴근 한 칸 (사진 + 시간)

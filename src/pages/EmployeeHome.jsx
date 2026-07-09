@@ -9,6 +9,8 @@ import {
   getCurrentPosition,
 } from '../lib/attendance'
 
+const CARD = 'rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-xl shadow-xl shadow-black/20'
+
 export default function EmployeeHome({ session, profile }) {
   const userId = session.user.id
   const [tab, setTab] = useState('punch')
@@ -21,16 +23,16 @@ export default function EmployeeHome({ session, profile }) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-24">
+    <div className="min-h-screen pb-24">
       {/* 상단 바 */}
-      <header className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
+      <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">TIME TRACK</p>
-          <p className="font-semibold text-gray-800">{profile?.name || '직원'}님</p>
+          <p className="text-xs text-slate-400">TIME TRACK</p>
+          <p className="font-semibold text-white">{profile?.name || '직원'}님</p>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="text-sm text-gray-500 hover:text-gray-800"
+          className="text-sm text-slate-400 hover:text-slate-200"
         >
           로그아웃
         </button>
@@ -43,7 +45,7 @@ export default function EmployeeHome({ session, profile }) {
       </main>
 
       {/* 하단 탭바 */}
-      <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200">
+      <nav className="fixed bottom-0 inset-x-0 bg-white/5 backdrop-blur-xl border-t border-white/10">
         <div className="max-w-md mx-auto grid grid-cols-3">
           {[
             { id: 'punch', label: '출퇴근', icon: '🕘' },
@@ -54,7 +56,7 @@ export default function EmployeeHome({ session, profile }) {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition ${
-                tab === t.id ? 'text-blue-600' : 'text-gray-400'
+                tab === t.id ? 'text-fuchsia-400' : 'text-slate-500'
               }`}
             >
               <span className="text-lg leading-none">{t.icon}</span>
@@ -152,16 +154,16 @@ function PunchTab({ userId, now }) {
   const status = !last ? 'before' : last.type === 'check_in' ? 'working' : 'done'
   const statusLabel = { before: '출근 전', working: '근무 중', done: '퇴근' }[status]
   const statusColor = {
-    before: 'bg-gray-100 text-gray-500',
-    working: 'bg-amber-100 text-amber-700',
-    done: 'bg-green-100 text-green-700',
+    before: 'bg-white/10 text-slate-400',
+    working: 'bg-amber-500/20 text-amber-300',
+    done: 'bg-emerald-500/20 text-emerald-300',
   }[status]
 
   return (
     <>
       {/* 현재 시간 + 상태 */}
-      <div className="bg-white rounded-2xl shadow p-6 mt-4 text-center">
-        <p className="text-gray-500 text-sm">
+      <div className={`${CARD} p-6 mt-4 text-center`}>
+        <p className="text-slate-400 text-sm">
           {now.toLocaleDateString('ko-KR', {
             year: 'numeric',
             month: 'long',
@@ -169,7 +171,7 @@ function PunchTab({ userId, now }) {
             weekday: 'long',
           })}
         </p>
-        <p className="text-4xl font-bold text-gray-800 mt-1 tabular-nums">
+        <p className="text-4xl font-bold text-white mt-1 tabular-nums">
           {now.toLocaleTimeString('ko-KR')}
         </p>
         <span
@@ -177,25 +179,25 @@ function PunchTab({ userId, now }) {
         >
           {statusLabel}
         </span>
-        <div className="mt-4 text-sm text-gray-500">
+        <div className="mt-4 text-sm text-slate-400">
           오늘 누적 근무시간{' '}
-          <strong className="text-gray-800">{fmtHours(todayMs)}</strong>
+          <strong className="text-white">{fmtHours(todayMs)}</strong>
         </div>
       </div>
 
       {/* 사진 촬영 */}
-      <div className="bg-white rounded-2xl shadow p-6 mt-4">
-        <h2 className="font-semibold text-gray-800 mb-3">📷 사진으로 인증</h2>
+      <div className={`${CARD} p-6 mt-4`}>
+        <h2 className="font-semibold text-white mb-3">📷 사진으로 인증</h2>
 
         {preview ? (
           <img src={preview} alt="촬영한 사진" className="w-full rounded-xl mb-3 object-cover" />
         ) : (
-          <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3 flex items-center justify-center text-gray-400 text-sm">
+          <div className="w-full aspect-square bg-white/5 border border-white/10 rounded-xl mb-3 flex items-center justify-center text-slate-500 text-sm">
             사진을 촬영하면 여기에 표시됩니다
           </div>
         )}
 
-        <label className="block w-full text-center bg-gray-800 hover:bg-gray-900 text-white font-medium py-2.5 rounded-lg cursor-pointer transition">
+        <label className="block w-full text-center bg-white/10 hover:bg-white/15 border border-white/10 text-slate-100 font-medium py-2.5 rounded-lg cursor-pointer transition">
           {preview ? '다시 촬영' : '카메라 열기 / 사진 선택'}
           <input
             type="file"
@@ -210,29 +212,29 @@ function PunchTab({ userId, now }) {
           <button
             onClick={() => handleCheck('check_in')}
             disabled={uploading || !file}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition"
+            className="bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 disabled:opacity-40 text-white font-semibold py-3 rounded-lg shadow-lg shadow-indigo-500/20 transition"
           >
             {uploading ? '...' : '출근'}
           </button>
           <button
             onClick={() => handleCheck('check_out')}
             disabled={uploading || !file}
-            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition"
+            className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-40 text-white font-semibold py-3 rounded-lg shadow-lg shadow-orange-500/20 transition"
           >
             {uploading ? '...' : '퇴근'}
           </button>
         </div>
 
         {message && (
-          <p className="text-center text-sm mt-3 font-medium text-gray-700">{message}</p>
+          <p className="text-center text-sm mt-3 font-medium text-slate-200">{message}</p>
         )}
       </div>
 
       {/* 오늘 내 기록 */}
-      <div className="bg-white rounded-2xl shadow p-6 mt-4">
-        <h2 className="font-semibold text-gray-800 mb-3">오늘 내 기록</h2>
+      <div className={`${CARD} p-6 mt-4`}>
+        <h2 className="font-semibold text-white mb-3">오늘 내 기록</h2>
         {records.length === 0 ? (
-          <p className="text-sm text-gray-400">아직 기록이 없습니다.</p>
+          <p className="text-sm text-slate-400">아직 기록이 없습니다.</p>
         ) : (
           <ul className="space-y-3">
             {records.map((r) => (
@@ -240,7 +242,7 @@ function PunchTab({ userId, now }) {
                 {r.photo_url ? (
                   <img src={r.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
                 ) : (
-                  <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
+                  <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-slate-400">
                     📍
                   </div>
                 )}
@@ -248,14 +250,14 @@ function PunchTab({ userId, now }) {
                   <span
                     className={`inline-block text-xs font-semibold px-2 py-0.5 rounded ${
                       r.type === 'check_in'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-orange-100 text-orange-700'
+                        ? 'bg-sky-500/20 text-sky-300'
+                        : 'bg-amber-500/20 text-amber-300'
                     }`}
                   >
                     {r.type === 'check_in' ? '출근' : '퇴근'}
                   </span>
                 </div>
-                <span className="text-sm text-gray-500 tabular-nums">
+                <span className="text-sm text-slate-400 tabular-nums">
                   {new Date(r.created_at).toLocaleTimeString('ko-KR')}
                 </span>
               </li>
@@ -312,20 +314,20 @@ function CalendarTab({ userId }) {
   const avgMs = workedDays.length ? monthTotalMs / workedDays.length : 0
 
   return (
-    <div className="bg-white rounded-2xl shadow p-5 mt-4">
+    <div className={`${CARD} p-5 mt-4`}>
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setCursor(new Date(year, month - 1, 1))}
-          className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600"
+          className="w-8 h-8 rounded-lg bg-white/10 text-slate-300"
         >
           ‹
         </button>
-        <div className="font-bold text-gray-800">
+        <div className="font-bold text-white">
           {year}년 {month + 1}월
         </div>
         <button
           onClick={() => setCursor(new Date(year, month + 1, 1))}
-          className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600"
+          className="w-8 h-8 rounded-lg bg-white/10 text-slate-300"
         >
           ›
         </button>
@@ -333,7 +335,7 @@ function CalendarTab({ userId }) {
 
       <div className="grid grid-cols-7 gap-1 mb-1">
         {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
-          <div key={d} className="text-center text-[11px] text-gray-400 pb-1">
+          <div key={d} className="text-center text-[11px] text-slate-500 pb-1">
             {d}
           </div>
         ))}
@@ -349,12 +351,12 @@ function CalendarTab({ userId }) {
               key={i}
               title={worked ? fmtHours(ms) : ''}
               className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] ${
-                worked ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+                worked ? 'bg-emerald-500/15 border border-emerald-400/30' : 'bg-white/5'
               }`}
             >
-              <span className={worked ? 'text-gray-800' : 'text-gray-400'}>{d}</span>
+              <span className={worked ? 'text-slate-100' : 'text-slate-500'}>{d}</span>
               {worked && (
-                <span className="text-[9px] font-bold text-green-600">
+                <span className="text-[9px] font-bold text-emerald-300">
                   {(ms / 3600000).toFixed(1)}h
                 </span>
               )}
@@ -368,16 +370,16 @@ function CalendarTab({ userId }) {
         <Stat label="총 근무시간" value={fmtHours(monthTotalMs)} />
         <Stat label="일 평균" value={fmtHours(avgMs)} />
       </div>
-      {loading && <p className="text-sm text-gray-400 mt-3 text-center">불러오는 중...</p>}
+      {loading && <p className="text-sm text-slate-500 mt-3 text-center">불러오는 중...</p>}
     </div>
   )
 }
 
 function Stat({ label, value }) {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-center">
-      <div className="text-[10px] text-gray-400 mb-1">{label}</div>
-      <div className="text-sm font-bold text-gray-800">{value}</div>
+    <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
+      <div className="text-[10px] text-slate-500 mb-1">{label}</div>
+      <div className="text-sm font-bold text-white">{value}</div>
     </div>
   )
 }
@@ -465,22 +467,22 @@ function GpsTab({ userId }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow p-6 mt-4">
-      <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+    <div className={`${CARD} p-6 mt-4`}>
+      <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
         📍 위치 기반 체크인
       </h2>
 
       {!office ? (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-slate-400">
           관리자가 아직 사업장 위치를 설정하지 않았어요. 관리자에게 요청해주세요.
         </p>
       ) : (
         <>
-          <div className="bg-gray-50 rounded-xl p-3 mb-4">
-            <div className="font-semibold text-gray-800 text-sm">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-4">
+            <div className="font-semibold text-white text-sm">
               {office.name || '사업장'}
             </div>
-            <div className="text-xs text-gray-500 mt-0.5">
+            <div className="text-xs text-slate-400 mt-0.5">
               허용 반경 {office.radius || 100}m
             </div>
           </div>
@@ -488,17 +490,17 @@ function GpsTab({ userId }) {
           <button
             onClick={locate}
             disabled={status === 'locating'}
-            className="w-full bg-gray-800 hover:bg-gray-900 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition"
+            className="w-full bg-white/10 hover:bg-white/15 border border-white/10 disabled:opacity-50 text-slate-100 font-medium py-2.5 rounded-lg transition"
           >
             {status === 'locating' ? '위치 확인 중…' : '현재 위치 확인하기'}
           </button>
 
-          {status === 'error' && <p className="text-sm text-red-600 mt-3">{errMsg}</p>}
+          {status === 'error' && <p className="text-sm text-rose-300 mt-3">{errMsg}</p>}
 
           {status === 'done' && coords && (
             <div
               className={`mt-4 rounded-xl p-3 text-center ${
-                withinRange ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                withinRange ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
               }`}
             >
               {distance !== null && (
@@ -518,8 +520,8 @@ function GpsTab({ userId }) {
               disabled={punching}
               className={`w-full mt-3 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 ${
                 withinRange
-                  ? 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-red-500 hover:bg-red-600'
+                  ? 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 shadow-lg shadow-indigo-500/20'
+                  : 'bg-rose-500 hover:bg-rose-600'
               }`}
             >
               {punching
@@ -531,7 +533,7 @@ function GpsTab({ userId }) {
           )}
 
           {message && (
-            <p className="text-center text-sm mt-3 font-medium text-gray-700">{message}</p>
+            <p className="text-center text-sm mt-3 font-medium text-slate-200">{message}</p>
           )}
         </>
       )}

@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 import { pad, dateKey, fmtHours, totalMs, dailyTotals, getCurrentPosition } from '../lib/attendance'
 
+const CARD = 'rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-xl shadow-xl shadow-black/20'
+const INPUT =
+  'rounded-lg border border-white/10 bg-white/5 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:border-fuchsia-400/60 focus:ring-2 focus:ring-fuchsia-500/20'
+
 export default function AdminDashboard({ profile }) {
   const [records, setRecords] = useState([])
   const [names, setNames] = useState({})
@@ -62,7 +66,6 @@ export default function AdminDashboard({ profile }) {
     const todayKey = dateKey(now)
     const monthPrefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-`
 
-    // 오름차순 정렬본을 사용자별로 그룹핑
     const asc = [...records].sort(
       (a, b) => new Date(a.created_at) - new Date(b.created_at),
     )
@@ -148,10 +151,8 @@ export default function AdminDashboard({ profile }) {
 
     setDeleting(s.key)
     try {
-      // 1) 출퇴근 기록 삭제 → 통계·캘린더에서도 사라짐
       const { error } = await supabase.from('attendance').delete().in('id', s.ids)
       if (error) throw error
-      // 2) 사진 파일 삭제 (실패해도 기록은 이미 삭제됨)
       const paths = s.photoUrls.map(extractStoragePath).filter(Boolean)
       if (paths.length) {
         await supabase.storage.from('attendance-photos').remove(paths)
@@ -199,19 +200,19 @@ export default function AdminDashboard({ profile }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-10">
-      <header className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen pb-10">
+      <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">관리자</p>
-          <p className="font-semibold text-gray-800">{profile?.name || '관리자'}님</p>
+          <p className="text-xs text-slate-400">관리자</p>
+          <p className="font-semibold text-white">{profile?.name || '관리자'}님</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={load} className="text-sm text-blue-600 hover:underline">
+          <button onClick={load} className="text-sm text-fuchsia-400 hover:text-fuchsia-300">
             새로고침
           </button>
           <button
             onClick={() => supabase.auth.signOut()}
-            className="text-sm text-gray-500 hover:text-gray-800"
+            className="text-sm text-slate-400 hover:text-slate-200"
           >
             로그아웃
           </button>
@@ -221,71 +222,71 @@ export default function AdminDashboard({ profile }) {
       <main className="max-w-3xl mx-auto px-4 mt-4 space-y-4">
         {/* 요약 */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl shadow p-4 text-center">
-            <div className="text-xs text-gray-400 mb-1">전체 직원</div>
-            <div className="text-xl font-bold text-gray-800">{profiles.length}명</div>
+          <div className={`${CARD} p-4 text-center`}>
+            <div className="text-xs text-slate-500 mb-1">전체 직원</div>
+            <div className="text-xl font-bold text-white">{profiles.length}명</div>
           </div>
-          <div className="bg-white rounded-2xl shadow p-4 text-center">
-            <div className="text-xs text-gray-400 mb-1">현재 근무 중</div>
-            <div className="text-xl font-bold text-amber-600">{workingNow}명</div>
+          <div className={`${CARD} p-4 text-center`}>
+            <div className="text-xs text-slate-500 mb-1">현재 근무 중</div>
+            <div className="text-xl font-bold text-amber-300">{workingNow}명</div>
           </div>
         </div>
 
         {/* 사업장 위치 설정 */}
-        <div className="bg-white rounded-2xl shadow p-5">
-          <h2 className="font-semibold text-gray-800 mb-3">⚙️ 사업장 위치 설정</h2>
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-semibold text-white mb-3">⚙️ 사업장 위치 설정</h2>
           <input
             value={office.name}
             onChange={(e) => setOffice((o) => ({ ...o, name: e.target.value }))}
             placeholder="사업장 이름"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full mb-2 ${INPUT}`}
           />
           <div className="grid grid-cols-3 gap-2 mb-2">
             <input
               value={office.lat}
               onChange={(e) => setOffice((o) => ({ ...o, lat: e.target.value }))}
               placeholder="위도"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={INPUT}
             />
             <input
               value={office.lng}
               onChange={(e) => setOffice((o) => ({ ...o, lng: e.target.value }))}
               placeholder="경도"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={INPUT}
             />
             <input
               value={office.radius}
               onChange={(e) => setOffice((o) => ({ ...o, radius: e.target.value }))}
               placeholder="반경(m)"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={INPUT}
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={useMyLocation}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-lg text-sm transition"
+              className="bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 font-medium py-2.5 rounded-lg text-sm transition"
             >
               내 현재 위치 사용
             </button>
             <button
               onClick={saveOffice}
               disabled={savingOffice}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition"
+              className="bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-fuchsia-500/20 transition"
             >
               {savingOffice ? '저장 중…' : '저장'}
             </button>
           </div>
-          {officeMsg && <p className="text-sm mt-2 text-gray-700">{officeMsg}</p>}
+          {officeMsg && <p className="text-sm mt-2 text-slate-200">{officeMsg}</p>}
         </div>
 
         {/* 직원 근태 현황 */}
-        <div className="bg-white rounded-2xl shadow p-5">
-          <h2 className="font-semibold text-gray-800 mb-3">직원 근태 현황</h2>
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-semibold text-white mb-3">직원 근태 현황</h2>
           {summary.length === 0 ? (
-            <p className="text-sm text-gray-400">아직 등록된 직원이 없습니다.</p>
+            <p className="text-sm text-slate-400">아직 등록된 직원이 없습니다.</p>
           ) : (
-            <div className="divide-y">
-              <div className="grid grid-cols-4 gap-2 text-[11px] text-gray-400 pb-2">
+            <div className="divide-y divide-white/10">
+              <div className="grid grid-cols-4 gap-2 text-[11px] text-slate-500 pb-2">
                 <span>이름</span>
                 <span>오늘 상태</span>
                 <span className="text-right">오늘</span>
@@ -293,25 +294,25 @@ export default function AdminDashboard({ profile }) {
               </div>
               {summary.map((s) => (
                 <div key={s.id} className="grid grid-cols-4 gap-2 items-center py-2.5 text-sm">
-                  <span className="text-gray-800 truncate">
+                  <span className="text-slate-100 truncate">
                     {s.name}
                     {s.id === profile?.id ? ' (나)' : ''}
                   </span>
                   <span
                     className={`text-xs font-semibold ${
                       s.todayStatus === 'working'
-                        ? 'text-amber-600'
+                        ? 'text-amber-300'
                         : s.todayStatus === 'done'
-                          ? 'text-green-600'
-                          : 'text-gray-400'
+                          ? 'text-emerald-300'
+                          : 'text-slate-500'
                     }`}
                   >
                     {{ before: '출근 전', working: '근무 중', done: '퇴근' }[s.todayStatus]}
                   </span>
-                  <span className="text-right text-gray-600 tabular-nums">
+                  <span className="text-right text-slate-300 tabular-nums">
                     {fmtHours(s.todayMs)}
                   </span>
-                  <span className="text-right text-gray-600 tabular-nums">
+                  <span className="text-right text-slate-300 tabular-nums">
                     {fmtHours(s.monthMs)}
                   </span>
                 </div>
@@ -325,42 +326,42 @@ export default function AdminDashboard({ profile }) {
 
         {/* 전체 근무 기록 (출근·퇴근 세트, 관리자 삭제 가능) */}
         <div>
-          <h1 className="text-lg font-bold text-gray-800 mb-1">전체 근무 기록</h1>
-          <p className="text-xs text-gray-400 mb-3">
+          <h1 className="text-lg font-bold text-white mb-1">전체 근무 기록</h1>
+          <p className="text-xs text-slate-400 mb-3">
             출근·퇴근을 한 세트로 관리합니다. 삭제하면 사진과 기록이 함께 지워지고 통계·캘린더에도 반영돼요.
           </p>
           {loading ? (
-            <p className="text-gray-500">불러오는 중...</p>
+            <p className="text-slate-400">불러오는 중...</p>
           ) : sessions.length === 0 ? (
-            <p className="text-gray-400">아직 기록이 없습니다.</p>
+            <p className="text-slate-500">아직 기록이 없습니다.</p>
           ) : (
             <div className="space-y-3">
               {sessions.map((s) => (
-                <div key={s.key} className="bg-white rounded-2xl shadow p-4">
+                <div key={s.key} className={`${CARD} p-4`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="min-w-0">
-                      <p className="font-semibold text-gray-800 truncate">
+                      <p className="font-semibold text-white truncate">
                         {names[s.userId] || '알 수 없음'}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-slate-400">
                         {s.date.toLocaleDateString('ko-KR', {
                           month: 'long',
                           day: 'numeric',
                           weekday: 'short',
                         })}
                         {s.durationMs != null ? (
-                          <span className="ml-2 font-medium text-blue-600">
+                          <span className="ml-2 font-medium text-sky-300">
                             · {fmtHours(s.durationMs)}
                           </span>
                         ) : (
-                          <span className="ml-2 text-amber-600">· 미퇴근</span>
+                          <span className="ml-2 text-amber-300">· 미퇴근</span>
                         )}
                       </p>
                     </div>
                     <button
                       onClick={() => deleteSession(s)}
                       disabled={deleting === s.key}
-                      className="shrink-0 text-sm text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                      className="shrink-0 text-sm text-rose-300 border border-rose-400/30 hover:bg-rose-500 hover:text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"
                     >
                       {deleting === s.key ? '삭제 중…' : '🗑 삭제'}
                     </button>
@@ -399,9 +400,10 @@ function extractStoragePath(publicUrl) {
 
 // 출근/퇴근 한 칸 (사진 + 시간)
 function PunchCell({ label, record, color, onZoom }) {
-  const badge = color === 'blue' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+  const badge =
+    color === 'blue' ? 'bg-sky-500/20 text-sky-300' : 'bg-amber-500/20 text-amber-300'
   return (
-    <div className="rounded-xl border border-gray-100 p-2">
+    <div className="rounded-xl border border-white/10 p-2">
       <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded ${badge}`}>
         {label}
       </span>
@@ -415,22 +417,22 @@ function PunchCell({ label, record, color, onZoom }) {
               className="mt-2 w-full aspect-square object-cover rounded-lg cursor-pointer hover:opacity-80"
             />
           ) : (
-            <div className="mt-2 w-full aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-2xl text-gray-400">
+            <div className="mt-2 w-full aspect-square rounded-lg bg-white/10 flex items-center justify-center text-2xl text-slate-400">
               📍
             </div>
           )}
-          <p className="mt-1 text-xs text-gray-600 tabular-nums">
+          <p className="mt-1 text-xs text-slate-400 tabular-nums">
             {new Date(record.created_at).toLocaleTimeString('ko-KR', {
               hour: '2-digit',
               minute: '2-digit',
             })}
             {record.distance != null && (
-              <span className="text-gray-400"> · {record.distance}m</span>
+              <span className="text-slate-500"> · {record.distance}m</span>
             )}
           </p>
         </>
       ) : (
-        <div className="mt-2 w-full aspect-square rounded-lg bg-gray-50 flex items-center justify-center text-xs text-gray-300">
+        <div className="mt-2 w-full aspect-square rounded-lg bg-white/5 flex items-center justify-center text-xs text-slate-600">
           기록 없음
         </div>
       )}
@@ -479,12 +481,11 @@ function EmployeeCalendar({ records, profiles }) {
   const avgMs = workedDays.length ? monthTotalMs / workedDays.length : 0
 
   return (
-    <div className="bg-white rounded-2xl shadow p-5">
-      <h2 className="font-semibold text-gray-800 mb-3">📅 직원별 근무 캘린더</h2>
+    <div className={`${CARD} p-5`}>
+      <h2 className="font-semibold text-white mb-3">📅 직원별 근무 캘린더</h2>
 
-      {/* 직원 선택 */}
       {employees.length === 0 ? (
-        <p className="text-sm text-gray-400">직원이 없습니다.</p>
+        <p className="text-sm text-slate-400">직원이 없습니다.</p>
       ) : (
         <>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -494,8 +495,8 @@ function EmployeeCalendar({ records, profiles }) {
                 onClick={() => setSelectedId(p.id)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                   selectedId === p.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white shadow-lg shadow-fuchsia-500/20'
+                    : 'bg-white/10 text-slate-300 hover:bg-white/15'
                 }`}
               >
                 {p.name || '이름없음'}
@@ -503,20 +504,19 @@ function EmployeeCalendar({ records, profiles }) {
             ))}
           </div>
 
-          {/* 월 이동 */}
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => setCursor(new Date(year, month - 1, 1))}
-              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600"
+              className="w-8 h-8 rounded-lg bg-white/10 text-slate-300"
             >
               ‹
             </button>
-            <div className="font-bold text-gray-800">
+            <div className="font-bold text-white">
               {year}년 {month + 1}월
             </div>
             <button
               onClick={() => setCursor(new Date(year, month + 1, 1))}
-              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600"
+              className="w-8 h-8 rounded-lg bg-white/10 text-slate-300"
             >
               ›
             </button>
@@ -524,7 +524,7 @@ function EmployeeCalendar({ records, profiles }) {
 
           <div className="grid grid-cols-7 gap-1 mb-1">
             {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
-              <div key={d} className="text-center text-[11px] text-gray-400 pb-1">
+              <div key={d} className="text-center text-[11px] text-slate-500 pb-1">
                 {d}
               </div>
             ))}
@@ -540,12 +540,12 @@ function EmployeeCalendar({ records, profiles }) {
                   key={i}
                   title={worked ? fmtHours(ms) : ''}
                   className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] ${
-                    worked ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+                    worked ? 'bg-emerald-500/15 border border-emerald-400/30' : 'bg-white/5'
                   }`}
                 >
-                  <span className={worked ? 'text-gray-800' : 'text-gray-400'}>{d}</span>
+                  <span className={worked ? 'text-slate-100' : 'text-slate-500'}>{d}</span>
                   {worked && (
-                    <span className="text-[9px] font-bold text-green-600">
+                    <span className="text-[9px] font-bold text-emerald-300">
                       {(ms / 3600000).toFixed(1)}h
                     </span>
                   )}
@@ -567,9 +567,9 @@ function EmployeeCalendar({ records, profiles }) {
 
 function AdminStat({ label, value }) {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-center">
-      <div className="text-[10px] text-gray-400 mb-1">{label}</div>
-      <div className="text-sm font-bold text-gray-800">{value}</div>
+    <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
+      <div className="text-[10px] text-slate-500 mb-1">{label}</div>
+      <div className="text-sm font-bold text-white">{value}</div>
     </div>
   )
 }

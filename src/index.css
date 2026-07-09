@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  color: #e2e8f0;
+  background:
+    radial-gradient(900px 600px at 12% -8%, rgba(139, 92, 246, 0.22), transparent 60%),
+    radial-gradient(900px 600px at 92% 6%, rgba(236, 72, 153, 0.14), transparent 55%),
+    radial-gradient(760px 520px at 60% 110%, rgba(56, 189, 248, 0.10), transparent 55%),
+    #0a0713;
+  background-attachment: fixed;
+}

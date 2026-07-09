@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 import { pad, dateKey, fmtHours, totalMs, dailyTotals, getCurrentPosition } from '../lib/attendance'
+import * as XLSX from 'xlsx'
 
 const CARD = 'rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-xl shadow-xl shadow-black/20'
 const INPUT =
@@ -165,7 +166,7 @@ export default function AdminDashboard({ profile }) {
     }
   }
 
-  // 근무 기록 엑셀(CSV) 다운로드 — 엑셀에서 바로 열림
+  // 근무 기록 엑셀(.xlsx) 다운로드
   function downloadExcel() {
     const fmtTime = (r) =>
       r
@@ -176,24 +177,31 @@ export default function AdminDashboard({ profile }) {
           })
         : ''
     const header = ['이름', '날짜', '출근', '퇴근', '근무시간', '근무시간(시간)']
-    const rows = [...sessions]
+    const data = [...sessions]
       .sort((a, b) => a.sortTime - b.sortTime)
       .map((s) => {
         const name = names[s.userId] || '알 수 없음'
         const dateStr = `${s.date.getFullYear()}-${pad(s.date.getMonth() + 1)}-${pad(s.date.getDate())}`
         const dur = s.durationMs != null ? fmtHours(s.durationMs) : ''
-        const hours = s.durationMs != null ? (s.durationMs / 3600000).toFixed(2) : ''
+        const hours = s.durationMs != null ? Number((s.durationMs / 3600000).toFixed(2)) : ''
         return [name, dateStr, fmtTime(s.checkIn), fmtTime(s.checkOut), dur, hours]
       })
-    const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data])
+    ws['!cols'] = [
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 14 },
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '근무기록')
     const now = new Date()
-    a.href = url
-    a.download = `근무기록_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    XLSX.writeFile(
+      wb,
+      `근무기록_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.xlsx`,
+    )
   }
 
   async function useMyLocation() {
@@ -436,12 +444,6 @@ function extractStoragePath(publicUrl) {
   const marker = '/attendance-photos/'
   const i = publicUrl.indexOf(marker)
   return i === -1 ? null : publicUrl.slice(i + marker.length)
-}
-
-// CSV 셀 이스케이프 (쉼표·따옴표·줄바꿈 처리)
-function csvCell(v) {
-  const s = String(v ?? '')
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
 // 출근/퇴근 한 칸 (사진 + 시간)

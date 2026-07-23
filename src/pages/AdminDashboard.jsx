@@ -1086,6 +1086,45 @@ function EmployeeCalendar({ records, profiles, onSaved }) {
     }
   }
 
+  // 선택한 날짜들의 근무 기록 삭제
+  async function deleteDays() {
+    // 선택한 날 중 실제 기록이 있는 날만 계산
+    const daysWithRecord = selectedDays.filter((k) => (dayTotals[k] || 0) > 0)
+    if (daysWithRecord.length === 0) {
+      setMsg('선택한 날에 삭제할 기록이 없어요.')
+      return
+    }
+    if (
+      !window.confirm(
+        `선택한 ${daysWithRecord.length}일의 근무 기록을 삭제할까요?\n되돌릴 수 없습니다.`,
+      )
+    )
+      return
+
+    setSaving(true)
+    setMsg('')
+    try {
+      for (const k of selectedDays) {
+        const dayStart = new Date(`${k}T00:00:00+09:00`).toISOString()
+        const dayEnd = new Date(`${k}T00:00:00+09:00`)
+        dayEnd.setDate(dayEnd.getDate() + 1)
+        await supabase
+          .from('attendance')
+          .delete()
+          .eq('user_id', selectedId)
+          .gte('created_at', dayStart)
+          .lt('created_at', dayEnd.toISOString())
+      }
+      setMsg(`✅ ${daysWithRecord.length}일의 기록을 삭제했어요.`)
+      setSelectedDays([])
+      if (onSaved) await onSaved()
+    } catch (err) {
+      setMsg('❌ 오류: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className={`${CARD} p-5`}>
       <h2 className="font-semibold text-white mb-3">직원별 근무 캘린더</h2>
@@ -1130,7 +1169,7 @@ function EmployeeCalendar({ records, profiles, onSaved }) {
 
           {/* 안내 문구 */}
           <p className="text-xs text-slate-400 mb-2">
-            날짜를 눌러 선택(여러 개 가능)한 뒤 "선택한 날 수정"을 누르면 근무시간을 한 번에 입력할 수 있어요.
+            날짜를 눌러 선택(여러 개 가능)한 뒤, 근무시간을 입력해 수정하거나 기록을 삭제할 수 있어요.
           </p>
 
           <div className="grid grid-cols-7 gap-1 mb-1">
@@ -1173,20 +1212,30 @@ function EmployeeCalendar({ records, profiles, onSaved }) {
 
           {/* 선택 시 나타나는 수정 바 */}
           {selectedDays.length > 0 && (
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-3">
-              <span className="text-sm text-slate-200">{selectedDays.length}일 선택됨</span>
-              <div className="flex items-center gap-2">
+            <div className="mt-3 rounded-xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-200">{selectedDays.length}일 선택됨</span>
                 <button
                   onClick={() => setSelectedDays([])}
                   className="text-xs text-slate-300 border border-white/15 hover:bg-white/10 px-3 py-1.5 rounded-lg transition"
                 >
                   선택 해제
                 </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => { setHoursInput('9'); setMsg(''); setShowModal(true) }}
-                  className="text-sm bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 text-white font-semibold px-4 py-1.5 rounded-lg transition"
+                  disabled={saving}
+                  className="text-sm bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg transition"
                 >
-                  선택한 날 수정
+                  ✏ 근무시간 수정
+                </button>
+                <button
+                  onClick={deleteDays}
+                  disabled={saving}
+                  className="text-sm text-rose-200 bg-rose-500/15 border border-rose-400/30 hover:bg-rose-500 hover:text-white disabled:opacity-50 font-semibold px-4 py-2 rounded-lg transition"
+                >
+                  🗑 기록 삭제
                 </button>
               </div>
             </div>

@@ -29,8 +29,22 @@ export default function AdminDashboard({ profile }) {
   const [savingManual, setSavingManual] = useState(false)
   const [manualMsg, setManualMsg] = useState('')
 
+  // 내 계정 설정 (관리자 본인 이메일/비밀번호 변경)
+  const [account, setAccount] = useState({ email: '', password: '', password2: '' })
+  const [savingAccount, setSavingAccount] = useState(false)
+  const [accountMsg, setAccountMsg] = useState('')
+
   useEffect(() => {
     load()
+  }, [])
+
+  // 현재 로그인한 관리자의 이메일을 폼에 채워둠
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) {
+        setAccount((a) => ({ ...a, email: data.user.email }))
+      }
+    })
   }, [])
 
   async function load() {
@@ -380,6 +394,49 @@ export default function AdminDashboard({ profile }) {
     }
   }
 
+  // 관리자 본인 이메일 변경
+  async function updateEmail() {
+    setSavingAccount(true)
+    setAccountMsg('')
+    try {
+      if (!account.email) {
+        setAccountMsg('❌ 이메일을 입력해주세요.')
+        return
+      }
+      const { error } = await supabase.auth.updateUser({ email: account.email })
+      if (error) throw error
+      setAccountMsg('✅ 이메일 변경 요청됨. 새 이메일로 온 확인 메일의 링크를 눌러야 최종 적용돼요.')
+    } catch (err) {
+      setAccountMsg('❌ 오류: ' + err.message)
+    } finally {
+      setSavingAccount(false)
+    }
+  }
+
+  // 관리자 본인 비밀번호 변경
+  async function updatePassword() {
+    setSavingAccount(true)
+    setAccountMsg('')
+    try {
+      if (!account.password || account.password.length < 6) {
+        setAccountMsg('❌ 비밀번호는 6자 이상이어야 해요.')
+        return
+      }
+      if (account.password !== account.password2) {
+        setAccountMsg('❌ 두 비밀번호가 일치하지 않아요.')
+        return
+      }
+      const { error } = await supabase.auth.updateUser({ password: account.password })
+      if (error) throw error
+      setAccount((a) => ({ ...a, password: '', password2: '' }))
+      setAccountMsg('✅ 비밀번호가 변경되었어요.')
+    } catch (err) {
+      setAccountMsg('❌ 오류: ' + err.message)
+    } finally {
+      setSavingAccount(false)
+    }
+  }
+
   return (
     <div className="min-h-screen pb-10">
       <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
@@ -646,6 +703,61 @@ export default function AdminDashboard({ profile }) {
           </div>
 
           {manualMsg && <p className="text-sm mt-2 text-slate-200">{manualMsg}</p>}
+        </div>
+
+        {/* 내 계정 설정 (관리자 본인 이메일/비밀번호 변경) */}
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-semibold text-white mb-1">내 계정 설정</h2>
+          <p className="text-xs text-slate-400 mb-3">
+            로그인에 쓰는 이메일과 비밀번호를 변경할 수 있어요.
+          </p>
+
+          {/* 이메일 변경 */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 mb-3">
+            <div className="text-sm font-semibold text-slate-200 mb-2">이메일 변경</div>
+            <input
+              type="email"
+              value={account.email}
+              onChange={(e) => setAccount((a) => ({ ...a, email: e.target.value }))}
+              placeholder="새 이메일 주소"
+              className={`w-full mb-2 ${INPUT}`}
+            />
+            <button
+              onClick={updateEmail}
+              disabled={savingAccount}
+              className="w-full bg-white/10 hover:bg-white/15 border border-white/10 text-slate-200 font-medium py-2.5 rounded-lg text-sm transition disabled:opacity-50"
+            >
+              {savingAccount ? '처리 중…' : '이메일 변경'}
+            </button>
+          </div>
+
+          {/* 비밀번호 변경 */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="text-sm font-semibold text-slate-200 mb-2">비밀번호 변경</div>
+            <input
+              type="password"
+              value={account.password}
+              onChange={(e) => setAccount((a) => ({ ...a, password: e.target.value }))}
+              placeholder="새 비밀번호 (6자 이상)"
+              className={`w-full mb-2 ${INPUT}`}
+            />
+            <input
+              type="password"
+              value={account.password2}
+              onChange={(e) => setAccount((a) => ({ ...a, password2: e.target.value }))}
+              placeholder="새 비밀번호 확인"
+              className={`w-full mb-2 ${INPUT}`}
+            />
+            <button
+              onClick={updatePassword}
+              disabled={savingAccount}
+              className="w-full bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-fuchsia-500/20 transition"
+            >
+              {savingAccount ? '처리 중…' : '비밀번호 변경'}
+            </button>
+          </div>
+
+          {accountMsg && <p className="text-sm mt-3 text-slate-200">{accountMsg}</p>}
         </div>
 
         {/* 직원별 근무 캘린더 */}

@@ -761,7 +761,7 @@ export default function AdminDashboard({ profile }) {
         </div>
 
         {/* 직원별 근무 캘린더 */}
-        <EmployeeCalendar records={records} profiles={profiles} />
+        <EmployeeCalendar records={records} profiles={profiles} onSaved={load} />
 
         {/* 전체 근무 기록 (출근·퇴근 세트, 관리자 삭제 가능) */}
         <div>
@@ -975,10 +975,18 @@ function SessionCard({ s, name, deleting, onDelete, onZoom }) {
   )
 }
 
-// 직원별 근무 캘린더 (관리자용): 직원 선택 → 월별 근무시간 달력
-function EmployeeCalendar({ records, profiles }) {
+// 직원별 근무 캘린더 (관리자용): 직원 선택 → 월별 근무시간 달력 + 날짜 복수선택 수정
+function EmployeeCalendar({ records, profiles, onSaved }) {
   const [selectedId, setSelectedId] = useState('')
   const [cursor, setCursor] = useState(new Date())
+
+  // 복수 선택된 날짜들 (예: "2026-07-14")
+  const [selectedDays, setSelectedDays] = useState([])
+  // 근무시간 입력 모달
+  const [showModal, setShowModal] = useState(false)
+  const [hoursInput, setHoursInput] = useState('9')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
 
   // 관리자 제외, 직원(employee)만 표시
   const employees = profiles.filter((p) => p.role === 'employee')
@@ -987,6 +995,11 @@ function EmployeeCalendar({ records, profiles }) {
   useEffect(() => {
     if (!selectedId && employees[0]) setSelectedId(employees[0].id)
   }, [profiles, selectedId])
+
+  // 직원이나 달을 바꾸면 선택 초기화
+  useEffect(() => {
+    setSelectedDays([])
+  }, [selectedId, cursor])
 
   const year = cursor.getFullYear()
   const month = cursor.getMonth()
@@ -1014,6 +1027,64 @@ function EmployeeCalendar({ records, profiles }) {
   const workedDays = Object.keys(dayTotals).filter((k) => dayTotals[k] > 0)
   const monthTotalMs = workedDays.reduce((s, k) => s + dayTotals[k], 0)
   const avgMs = workedDays.length ? monthTotalMs / workedDays.length : 0
+
+  // 날짜 클릭 → 선택/해제 토글
+  function toggleDay(d) {
+    const k = `${year}-${pad(month + 1)}-${pad(d)}`
+    setSelectedDays((prev) =>
+      prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k],
+    )
+  }
+
+  // 선택한 날짜들에 근무시간 저장
+  async function saveHours() {
+    setSaving(true)
+    setMsg('')
+    try {
+      const hours = parseFloat(hoursInput)
+      if (Number.isNaN(hours) || hours <= 0 || hours > 24) {
+        setMsg('❌ 1~24 사이의 숫자를 입력해주세요.')
+        return
+      }
+      if (!selectedId) {
+        setMsg('❌ 직원을 먼저 선택해주세요.')
+        return
+      }
+
+      // 각 날짜마다: 기존 기록 삭제 후, 09:00 출근 + (9+시간) 퇴근으로 저장
+      for (const k of selectedDays) {
+        // 그 날의 기존 기록 삭제 (덮어쓰기)
+        const dayStart = new Date(`${k}T00:00:00+09:00`).toISOString()
+        const dayEnd = new Date(`${k}T00:00:00+09:00`)
+        dayEnd.setDate(dayEnd.getDate() + 1)
+        await supabase
+          .from('attendance')
+          .delete()
+          .eq('user_id', selectedId)
+          .gte('created_at', dayStart)
+          .lt('created_at', dayEnd.toISOString())
+
+        // 출근 09:00 (KST)
+        const checkIn = new Date(`${k}T09:00:00+09:00`)
+        // 퇴근 = 09:00 + 근무시간
+        const checkOut = new Date(checkIn.getTime() + hours * 3600000)
+
+        await supabase.from('attendance').insert([
+          { user_id: selectedId, type: 'check_in', created_at: checkIn.toISOString() },
+          { user_id: selectedId, type: 'check_out', created_at: checkOut.toISOString() },
+        ])
+      }
+
+      setMsg(`✅ ${selectedDays.length}일에 ${hours}시간씩 저장했어요.`)
+      setShowModal(false)
+      setSelectedDays([])
+      if (onSaved) await onSaved()
+    } catch (err) {
+      setMsg('❌ 오류: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className={`${CARD} p-5`}>
@@ -1057,6 +1128,11 @@ function EmployeeCalendar({ records, profiles }) {
             </button>
           </div>
 
+          {/* 안내 문구 */}
+          <p className="text-xs text-slate-400 mb-2">
+            날짜를 눌러 선택(여러 개 가능)한 뒤 "선택한 날 수정"을 누르면 근무시간을 한 번에 입력할 수 있어요.
+          </p>
+
           <div className="grid grid-cols-7 gap-1 mb-1">
             {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
               <div key={d} className="text-center text-[11px] text-slate-500 pb-1">
@@ -1070,24 +1146,53 @@ function EmployeeCalendar({ records, profiles }) {
               const k = `${year}-${pad(month + 1)}-${pad(d)}`
               const ms = dayTotals[k] || 0
               const worked = ms > 0
+              const isSelected = selectedDays.includes(k)
               return (
-                <div
+                <button
                   key={i}
+                  onClick={() => toggleDay(d)}
                   title={worked ? fmtHours(ms) : ''}
-                  className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] ${
-                    worked ? 'bg-emerald-500/15 border border-emerald-400/30' : 'bg-white/5'
+                  className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] transition ${
+                    isSelected
+                      ? 'bg-fuchsia-500/30 border-2 border-fuchsia-400'
+                      : worked
+                        ? 'bg-emerald-500/15 border border-emerald-400/30 hover:bg-emerald-500/25'
+                        : 'bg-white/5 hover:bg-white/10'
                   }`}
                 >
-                  <span className={worked ? 'text-slate-100' : 'text-slate-500'}>{d}</span>
+                  <span className={worked || isSelected ? 'text-slate-100' : 'text-slate-500'}>{d}</span>
                   {worked && (
                     <span className="text-[9px] font-bold text-emerald-300">
                       {(ms / 3600000).toFixed(1)}h
                     </span>
                   )}
-                </div>
+                </button>
               )
             })}
           </div>
+
+          {/* 선택 시 나타나는 수정 바 */}
+          {selectedDays.length > 0 && (
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-3">
+              <span className="text-sm text-slate-200">{selectedDays.length}일 선택됨</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedDays([])}
+                  className="text-xs text-slate-300 border border-white/15 hover:bg-white/10 px-3 py-1.5 rounded-lg transition"
+                >
+                  선택 해제
+                </button>
+                <button
+                  onClick={() => { setHoursInput('9'); setMsg(''); setShowModal(true) }}
+                  className="text-sm bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 text-white font-semibold px-4 py-1.5 rounded-lg transition"
+                >
+                  선택한 날 수정
+                </button>
+              </div>
+            </div>
+          )}
+
+          {msg && <p className="text-sm mt-2 text-slate-200">{msg}</p>}
 
           <div className="grid grid-cols-3 gap-2 mt-5">
             <AdminStat label="근무일" value={`${workedDays.length}일`} />
@@ -1095,6 +1200,53 @@ function EmployeeCalendar({ records, profiles }) {
             <AdminStat label="일 평균" value={fmtHours(avgMs)} />
           </div>
         </>
+      )}
+
+      {/* 근무시간 입력 모달 */}
+      {showModal && (
+        <div
+          onClick={() => !saving && setShowModal(false)}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`${CARD} p-5 w-full max-w-xs`}
+          >
+            <h3 className="font-semibold text-white mb-1">근무시간 입력</h3>
+            <p className="text-xs text-slate-400 mb-4">
+              선택한 {selectedDays.length}일에 적용돼요. 출근은 오전 9시로 저장되고, 입력한 시간만큼 뒤가 퇴근이에요.
+            </p>
+            <div className="flex items-center gap-2 mb-4">
+              <input
+                type="number"
+                min="1"
+                max="24"
+                step="0.5"
+                value={hoursInput}
+                onChange={(e) => setHoursInput(e.target.value)}
+                autoFocus
+                className={`flex-1 ${INPUT}`}
+              />
+              <span className="text-slate-300 text-sm">시간</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowModal(false)}
+                disabled={saving}
+                className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-medium py-2.5 rounded-lg text-sm transition disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={saveHours}
+                disabled={saving}
+                className="bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition"
+              >
+                {saving ? '저장 중…' : '저장'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

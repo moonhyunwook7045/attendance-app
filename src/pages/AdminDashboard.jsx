@@ -608,7 +608,8 @@ export default function AdminDashboard({ profile }) {
               type="date"
               value={manual.date}
               onChange={(e) => setManual((m) => ({ ...m, date: e.target.value }))}
-              className={`w-full ${INPUT}`}
+              onClick={(e) => e.currentTarget.showPicker?.()}
+              className={`w-full cursor-pointer ${INPUT}`}
             />
 
             {/* 출근 / 퇴근 시각 */}
@@ -619,7 +620,8 @@ export default function AdminDashboard({ profile }) {
                   type="time"
                   value={manual.checkIn}
                   onChange={(e) => setManual((m) => ({ ...m, checkIn: e.target.value }))}
-                  className={`w-full ${INPUT}`}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  className={`w-full cursor-pointer ${INPUT}`}
                 />
               </div>
               <div>
@@ -628,7 +630,8 @@ export default function AdminDashboard({ profile }) {
                   type="time"
                   value={manual.checkOut}
                   onChange={(e) => setManual((m) => ({ ...m, checkOut: e.target.value }))}
-                  className={`w-full ${INPUT}`}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  className={`w-full cursor-pointer ${INPUT}`}
                 />
               </div>
             </div>

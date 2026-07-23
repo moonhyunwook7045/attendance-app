@@ -24,6 +24,11 @@ export default function AdminDashboard({ profile }) {
   const [savingOffice, setSavingOffice] = useState(false)
   const [officeMsg, setOfficeMsg] = useState('')
 
+  // 수기 출퇴근 입력 폼 (관리자 보정용)
+  const [manual, setManual] = useState({ userId: '', date: '', checkIn: '', checkOut: '' })
+  const [savingManual, setSavingManual] = useState(false)
+  const [manualMsg, setManualMsg] = useState('')
+
   useEffect(() => {
     load()
   }, [])
@@ -328,6 +333,53 @@ export default function AdminDashboard({ profile }) {
     await load()
   }
 
+  // 관리자 수기 출퇴근 입력: 직원이 깜빡한 날을 관리자가 채워넣음
+  async function addManualRecord() {
+    setSavingManual(true)
+    setManualMsg('')
+    try {
+      if (!manual.userId) {
+        setManualMsg('❌ 직원을 선택해주세요.')
+        return
+      }
+      if (!manual.date) {
+        setManualMsg('❌ 날짜를 선택해주세요.')
+        return
+      }
+      if (!manual.checkIn && !manual.checkOut) {
+        setManualMsg('❌ 출근 또는 퇴근 시각을 하나 이상 입력해주세요.')
+        return
+      }
+      // 출근·퇴근 둘 다 넣을 땐 퇴근이 출근보다 빠르면 막기
+      if (manual.checkIn && manual.checkOut && manual.checkOut <= manual.checkIn) {
+        setManualMsg('❌ 퇴근 시각이 출근 시각보다 빠를 수 없어요.')
+        return
+      }
+
+      // "YYYY-MM-DD" + "HH:MM" → 한국시간(+09:00) 기준 → DB에는 ISO(UTC)로 저장됨
+      const toTs = (time) => new Date(`${manual.date}T${time}:00+09:00`).toISOString()
+
+      const rows = []
+      if (manual.checkIn) {
+        rows.push({ user_id: manual.userId, type: 'check_in', created_at: toTs(manual.checkIn) })
+      }
+      if (manual.checkOut) {
+        rows.push({ user_id: manual.userId, type: 'check_out', created_at: toTs(manual.checkOut) })
+      }
+
+      const { error } = await supabase.from('attendance').insert(rows)
+      if (error) throw error
+
+      setManual({ userId: '', date: '', checkIn: '', checkOut: '' })
+      setManualMsg('✅ 근무 기록이 추가되었어요.')
+      await load()
+    } catch (err) {
+      setManualMsg('❌ 오류: ' + err.message)
+    } finally {
+      setSavingManual(false)
+    }
+  }
+
   return (
     <div className="min-h-screen pb-10">
       <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
@@ -525,6 +577,72 @@ export default function AdminDashboard({ profile }) {
               />
             </div>
           )}
+        </div>
+
+        {/* 수기 출퇴근 입력 (관리자 보정용) */}
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-semibold text-white mb-1">출퇴근 기록 수기 입력</h2>
+          <p className="text-xs text-slate-400 mb-3">
+            직원이 체크를 깜빡한 날, 관리자가 출근·퇴근 시각을 직접 입력해 기록을 채워넣을 수 있어요.
+          </p>
+
+          <div className="space-y-2">
+            {/* 직원 선택 */}
+            <select
+              value={manual.userId}
+              onChange={(e) => setManual((m) => ({ ...m, userId: e.target.value }))}
+              className={`w-full ${INPUT}`}
+            >
+              <option value="">직원 선택…</option>
+              {profiles
+                .filter((p) => p.role === 'employee')
+                .map((p) => (
+                  <option key={p.id} value={p.id} className="bg-slate-800">
+                    {p.name || '이름없음'}
+                  </option>
+                ))}
+            </select>
+
+            {/* 날짜 */}
+            <input
+              type="date"
+              value={manual.date}
+              onChange={(e) => setManual((m) => ({ ...m, date: e.target.value }))}
+              className={`w-full ${INPUT}`}
+            />
+
+            {/* 출근 / 퇴근 시각 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">출근 시각</label>
+                <input
+                  type="time"
+                  value={manual.checkIn}
+                  onChange={(e) => setManual((m) => ({ ...m, checkIn: e.target.value }))}
+                  className={`w-full ${INPUT}`}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">퇴근 시각</label>
+                <input
+                  type="time"
+                  value={manual.checkOut}
+                  onChange={(e) => setManual((m) => ({ ...m, checkOut: e.target.value }))}
+                  className={`w-full ${INPUT}`}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={addManualRecord}
+              disabled={savingManual}
+              className="w-full bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-400 hover:to-indigo-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-fuchsia-500/20 transition"
+            >
+              {savingManual ? '추가 중…' : '＋ 기록 추가'}
+            </button>
+          </div>
+
+          {manualMsg && <p className="text-sm mt-2 text-slate-200">{manualMsg}</p>}
         </div>
 
         {/* 직원별 근무 캘린더 */}

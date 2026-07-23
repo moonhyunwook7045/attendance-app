@@ -6,6 +6,9 @@ import * as XLSX from 'xlsx'
 const CARD = 'rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-xl shadow-xl shadow-black/20'
 const INPUT =
   'rounded-lg border border-white/10 bg-white/5 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:border-fuchsia-400/60 focus:ring-2 focus:ring-fuchsia-500/20'
+// 날짜/시간 입력칸: 모바일에서 높이가 들쭉날쭉하거나 세로로 늘어나는 문제 방지
+const DATETIME_INPUT =
+  INPUT + ' h-11 min-h-11 leading-tight appearance-none [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-date-and-time-value]:text-left'
 
 export default function AdminDashboard({ profile }) {
   const [records, setRecords] = useState([])
@@ -666,7 +669,7 @@ export default function AdminDashboard({ profile }) {
               value={manual.date}
               onChange={(e) => setManual((m) => ({ ...m, date: e.target.value }))}
               onClick={(e) => e.currentTarget.showPicker?.()}
-              className={`w-full cursor-pointer ${INPUT}`}
+              className={`w-full cursor-pointer ${DATETIME_INPUT}`}
             />
 
             {/* 출근 / 퇴근 시각 */}
@@ -678,7 +681,7 @@ export default function AdminDashboard({ profile }) {
                   value={manual.checkIn}
                   onChange={(e) => setManual((m) => ({ ...m, checkIn: e.target.value }))}
                   onClick={(e) => e.currentTarget.showPicker?.()}
-                  className={`w-full cursor-pointer ${INPUT}`}
+                  className={`w-full cursor-pointer ${DATETIME_INPUT}`}
                 />
               </div>
               <div>
@@ -688,7 +691,7 @@ export default function AdminDashboard({ profile }) {
                   value={manual.checkOut}
                   onChange={(e) => setManual((m) => ({ ...m, checkOut: e.target.value }))}
                   onClick={(e) => e.currentTarget.showPicker?.()}
-                  className={`w-full cursor-pointer ${INPUT}`}
+                  className={`w-full cursor-pointer ${DATETIME_INPUT}`}
                 />
               </div>
             </div>
